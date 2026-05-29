@@ -50,7 +50,7 @@ public class Account extends BaseEntity {
     private AccountType accountType;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "currency_code", nullable = false)
+    @JoinColumn(name = "currency_code", nullable = false, referencedColumnName = "currency_code", columnDefinition = "VARCHAR(3)")
     private Currency currency;
 
     @Column(nullable = false, precision = 20, scale = 4)

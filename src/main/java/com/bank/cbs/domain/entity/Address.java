@@ -42,7 +42,7 @@ public class Address extends BaseEntity {
     @Column(name = "postal_code", length = 20)
     private String postalCode;
 
-    @Column(name = "country_code", nullable = false, length = 2)
+    @Column(name = "country_code", nullable = false, length = 2, columnDefinition = "VARCHAR(2)")
     private String countryCode;
 
     @Column(name = "is_primary", nullable = false)

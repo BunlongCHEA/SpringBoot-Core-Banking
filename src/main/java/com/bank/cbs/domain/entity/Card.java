@@ -46,7 +46,7 @@ public class Card extends BaseEntity {
     @Column(name = "card_number_hash", nullable = false, unique = true, length = 64)
     private String cardNumberHash;
 
-    @Column(name = "card_last_four", nullable = false, length = 4)
+    @Column(name = "card_last_four", nullable = false, length = 4, columnDefinition = "VARCHAR(4)")
     private String cardLastFour;
 
     @Enumerated(EnumType.STRING)

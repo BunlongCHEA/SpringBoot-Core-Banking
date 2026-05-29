@@ -34,4 +34,6 @@ build/
 
 .fake
 
+### Ignore System Files and Sensitive Data
 /src/main/resources/application.yaml
+/logs/*

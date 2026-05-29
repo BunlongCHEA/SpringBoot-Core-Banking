@@ -10,7 +10,7 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
 
 @Configuration
 @EnableMongoAuditing
-@EnableMongoRepositories(basePackages = "com.bank.cbs.core_banking_system.repository")
+@EnableMongoRepositories(basePackages = "com.bank.cbs.repository.mongo")
 public class MongoConfig {
     @Bean
     public MongoTransactionManager transactionManager(MongoDatabaseFactory dbFactory) {

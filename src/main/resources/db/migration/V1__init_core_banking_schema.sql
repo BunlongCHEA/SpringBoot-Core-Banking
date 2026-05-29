@@ -24,7 +24,7 @@ CREATE TYPE fee_type             AS ENUM ('TRANSFER_FEE','ATM_FEE','MAINTENANCE_
 
 -- ── CURRENCIES ───────────────────────────────────────────────
 CREATE TABLE currencies (
-    currency_code   CHAR(3)       PRIMARY KEY,
+    currency_code   VARCHAR(3)    PRIMARY KEY,
     name            VARCHAR(100)  NOT NULL,
     symbol          VARCHAR(5)    NOT NULL,
     decimal_places  SMALLINT      NOT NULL DEFAULT 2,
@@ -50,7 +50,7 @@ CREATE TABLE addresses (
     city            VARCHAR(100)  NOT NULL,
     state_province  VARCHAR(100),
     postal_code     VARCHAR(20),
-    country_code    CHAR(2)       NOT NULL,
+    country_code    VARCHAR(2)    NOT NULL,
     is_primary      BOOLEAN       NOT NULL DEFAULT FALSE,
     created_at      TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ
@@ -104,7 +104,7 @@ CREATE TABLE accounts (
     account_number      VARCHAR(20)     NOT NULL UNIQUE,
     customer_id         UUID            NOT NULL REFERENCES customers(customer_id),
     account_type        account_type    NOT NULL,
-    currency_code       CHAR(3)         NOT NULL REFERENCES currencies(currency_code),
+    currency_code       VARCHAR(3)      NOT NULL REFERENCES currencies(currency_code),
     balance             NUMERIC(20,4)   NOT NULL DEFAULT 0 CHECK (balance >= 0),
     available_balance   NUMERIC(20,4)   NOT NULL DEFAULT 0 CHECK (available_balance >= 0),
     hold_balance        NUMERIC(20,4)   NOT NULL DEFAULT 0 CHECK (hold_balance >= 0),
@@ -145,7 +145,7 @@ CREATE TABLE transactions (
     credit_account_id   UUID                 REFERENCES accounts(account_id),
     transaction_type    transaction_type     NOT NULL,
     amount              NUMERIC(20,4)        NOT NULL CHECK (amount > 0),
-    currency_code       CHAR(3)              NOT NULL REFERENCES currencies(currency_code),
+    currency_code       VARCHAR(3)           NOT NULL REFERENCES currencies(currency_code),
     exchange_rate       NUMERIC(12,6)        NOT NULL DEFAULT 1.000000,
     base_amount         NUMERIC(20,4),
     status              transaction_status   NOT NULL DEFAULT 'PENDING',
@@ -232,9 +232,9 @@ CREATE TABLE account_ledgers (
     created_at          TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_ledger_account_date ON account_ledger(account_id, posting_date DESC);
-CREATE INDEX idx_ledger_transaction  ON account_ledger(transaction_id);
-CREATE INDEX idx_ledger_value_date   ON account_ledger(account_id, value_date DESC);
+CREATE INDEX idx_ledgers_account_date ON account_ledgers(account_id, posting_date DESC);
+CREATE INDEX idx_ledgers_transaction  ON account_ledgers(transaction_id);
+CREATE INDEX idx_ledgers_value_date   ON account_ledgers(account_id, value_date DESC);
 
 -- ── TRANSACTION FEES ─────────────────────────────────────────
 -- transaction_id is plain UUID, no FK to partitioned table.
@@ -243,7 +243,7 @@ CREATE TABLE transaction_fees (
     transaction_id  UUID          NOT NULL,       -- ← no FK (partitioned table)
     fee_type        fee_type      NOT NULL,
     amount          NUMERIC(20,4) NOT NULL CHECK (amount >= 0),
-    currency_code   CHAR(3)       NOT NULL REFERENCES currencies(currency_code),
+    currency_code   VARCHAR(3)    NOT NULL REFERENCES currencies(currency_code),
     description     VARCHAR(255),
     created_at      TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
@@ -255,7 +255,7 @@ CREATE TABLE cards (
     card_id               UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
     account_id            UUID          NOT NULL REFERENCES accounts(account_id),
     card_number_hash      VARCHAR(64)   NOT NULL UNIQUE,
-    card_last_four        CHAR(4)       NOT NULL,
+    card_last_four        VARCHAR(4)    NOT NULL,
     card_type             card_type     NOT NULL,
     expiry_date           DATE          NOT NULL,
     status                card_status   NOT NULL DEFAULT 'PENDING',
@@ -281,7 +281,7 @@ CREATE TABLE loans (
     interest_rate        NUMERIC(6,4)  NOT NULL,
     term_months          INTEGER       NOT NULL CHECK (term_months > 0),
     monthly_installment  NUMERIC(20,4),
-    currency_code        CHAR(3)       NOT NULL REFERENCES currencies(currency_code),
+    currency_code        VARCHAR(3)    NOT NULL REFERENCES currencies(currency_code),
     disbursed_at         TIMESTAMPTZ,
     maturity_date        DATE,
     next_payment_date    DATE,
@@ -320,7 +320,7 @@ CREATE TABLE beneficiaries (
     bank_code         VARCHAR(20),
     bank_name         VARCHAR(255),
     beneficiary_name  VARCHAR(255)  NOT NULL,
-    currency_code     CHAR(3)       REFERENCES currencies(currency_code),
+    currency_code     VARCHAR(3)    REFERENCES currencies(currency_code),
     is_active         BOOLEAN       NOT NULL DEFAULT TRUE,
     created_at        TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     updated_at        TIMESTAMPTZ

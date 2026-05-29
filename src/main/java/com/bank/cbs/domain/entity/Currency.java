@@ -22,7 +22,7 @@ import lombok.Setter;
 public class Currency {
     
     @Id
-    @Column(name = "currency_code", length = 3)
+    @Column(name = "currency_code", length = 3, columnDefinition = "VARCHAR(3)")
     private String currencyCode; // ISO 4217 code, e.g., USD, EUR
 
     @Column(nullable = false, length = 100)
