@@ -1,0 +1,119 @@
+package com.bank.cbs.service;
+
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.bank.cbs.domain.entity.Account;
+import com.bank.cbs.domain.entity.Customer;
+import com.bank.cbs.domain.enums.AccountStatus;
+import com.bank.cbs.dto.request.CreateAccountRequest;
+import com.bank.cbs.dto.response.AccountResponse;
+import com.bank.cbs.exception.BusinessException;
+import com.bank.cbs.exception.ResourceNotFoundException;
+import com.bank.cbs.repository.jpa.AccountRepository;
+import com.bank.cbs.repository.jpa.CurrencyRepository;
+import com.bank.cbs.service.redis.BalanceCacheRedisService;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class AccountService {
+    private final AccountRepository       accountRepository;
+    private final CurrencyRepository      currencyRepository;
+    private final CustomerService         customerService;
+    private final BalanceCacheRedisService balanceCacheRedisService;
+
+    @Transactional
+    public AccountResponse create(UUID customerId, CreateAccountRequest request) {
+        Customer customer = customerService.getOrThrow(customerId);
+
+        var currency = currencyRepository.findById(request.currencyCode())
+            .orElseThrow(() -> new ResourceNotFoundException("Currency not found: " + request.currencyCode()));
+
+        Account account = Account.builder()
+            .accountNumber(generateAccountNumber())
+            .customer(customer)
+            .accountType(request.accountType())
+            .currency(currency)
+            .balance(BigDecimal.ZERO)
+            .availableBalance(BigDecimal.ZERO)
+            .holdBalance(BigDecimal.ZERO)
+            .status(AccountStatus.ACTIVE)
+            .dailyLimit(request.dailyLimit() != null ? request.dailyLimit() : new BigDecimal("50000.0000"))
+            .openedAt(OffsetDateTime.now())
+            .build();
+
+        Account saved = accountRepository.save(account);
+        log.info("Account created: {} for customer: {}", saved.getAccountNumber(), customerId);
+        return AccountResponse.from(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public AccountResponse findById(UUID accountId) {
+        return AccountResponse.from(getOrThrow(accountId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<AccountResponse> findByCustomer(UUID customerId) {
+        return accountRepository.findByCustomer_CustomerId(customerId)
+            .stream().map(AccountResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public BigDecimal getBalance(UUID accountId) {
+        return balanceCacheRedisService.get(accountId.toString())
+            .orElseGet(() -> {
+                BigDecimal balance = getOrThrow(accountId).getAvailableBalance();
+                balanceCacheRedisService.cache(accountId.toString(), balance);
+                return balance;
+            });
+    }
+
+    @Transactional
+    public void freeze(UUID accountId) {
+        Account account = getOrThrow(accountId);
+        account.setStatus(AccountStatus.FROZEN);
+        accountRepository.save(account);
+        balanceCacheRedisService.evict(accountId.toString());
+    }
+
+    @Transactional
+    public void close(UUID accountId) {
+        Account account = getOrThrow(accountId);
+        if (account.getBalance().compareTo(BigDecimal.ZERO) != 0) {
+            throw new BusinessException("Cannot close account with non-zero balance");
+        }
+        account.setStatus(AccountStatus.CLOSED);
+        account.setClosedAt(OffsetDateTime.now());
+        accountRepository.save(account);
+        balanceCacheRedisService.evict(accountId.toString());
+    }
+
+    public Account getOrThrow(UUID accountId) {
+        return accountRepository.findById(accountId)
+            .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + accountId));
+    }
+
+    public Account getByAccountNumberOrThrow(String accountNumber) {
+        return accountRepository.findByAccountNumber(accountNumber)
+            .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + accountNumber));
+    }
+
+    private String generateAccountNumber() {
+        String number;
+        do {
+            number = String.valueOf(ThreadLocalRandom.current().nextLong(1000000000000000L, 9999999999999999L));
+            number = number.substring(0, 16);
+        } while (accountRepository.existsByAccountNumber(number));
+        return number;
+    }
+}
