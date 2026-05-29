@@ -126,11 +126,11 @@ CREATE INDEX idx_accounts_status   ON accounts(status);
 CREATE INDEX idx_accounts_currency ON accounts(currency_code);
 
 -- ── TRANSACTIONS (partitioned) ───────────────────────────────
--- FIX: PRIMARY KEY must include the partition key column (initiated_at).
+-- PRIMARY KEY must include the partition key column (initiated_at).
 --      transaction_id alone is NOT sufficient on a partitioned table.
 --      Composite PK: (transaction_id, initiated_at)
 --
--- FIX: UNIQUE constraint on idempotency_key must also include initiated_at
+-- UNIQUE constraint on idempotency_key must also include initiated_at
 --      for the same reason. We enforce true global uniqueness via a
 --      separate unique index on the NON-partitioned idempotency lookup
 --      table below (transactions_idempotency).
@@ -216,10 +216,10 @@ CREATE INDEX idx_txn_type           ON transactions(transaction_type);
 CREATE INDEX idx_txn_initiated_at   ON transactions(initiated_at DESC);
 
 -- ── ACCOUNT LEDGER (Double-Entry) ────────────────────────────
--- FIX: transaction_id is a plain UUID column — no FK to transactions
+-- transaction_id is a plain UUID column — no FK to transactions
 --      because the transactions PK is now composite (id + initiated_at).
 --      Referential integrity is enforced at the application/service layer.
-CREATE TABLE account_ledger (
+CREATE TABLE account_ledgers (
     ledger_id           UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
     account_id          UUID          NOT NULL REFERENCES accounts(account_id),
     transaction_id      UUID          NOT NULL,   -- ← no FK (partitioned table)
@@ -237,7 +237,7 @@ CREATE INDEX idx_ledger_transaction  ON account_ledger(transaction_id);
 CREATE INDEX idx_ledger_value_date   ON account_ledger(account_id, value_date DESC);
 
 -- ── TRANSACTION FEES ─────────────────────────────────────────
--- FIX: Same — transaction_id is plain UUID, no FK to partitioned table.
+-- transaction_id is plain UUID, no FK to partitioned table.
 CREATE TABLE transaction_fees (
     fee_id          UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
     transaction_id  UUID          NOT NULL,       -- ← no FK (partitioned table)

@@ -33,3 +33,5 @@ build/
 .vscode/
 
 .fake
+
+/src/main/resources/application.yaml
