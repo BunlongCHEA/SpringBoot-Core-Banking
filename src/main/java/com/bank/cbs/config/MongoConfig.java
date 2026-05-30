@@ -41,7 +41,7 @@ public class MongoConfig {
         return MongoClients.create(settings);
     }
 
-    @Bean
+    @Bean("mongoTransactionManager")
     public MongoTransactionManager transactionManager(MongoDatabaseFactory dbFactory) {
         return new MongoTransactionManager(dbFactory);
     }

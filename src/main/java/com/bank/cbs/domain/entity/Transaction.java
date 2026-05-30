@@ -4,7 +4,9 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 
 import com.bank.cbs.domain.enums.TransactionChannel;
 import com.bank.cbs.domain.enums.TransactionStatus;
@@ -54,6 +56,7 @@ public class Transaction extends BaseEntity {
     private Account creditAccount;
 
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(name = "transaction_type", nullable = false, columnDefinition = "transaction_type")
     private TransactionType transactionType;
 
@@ -71,10 +74,12 @@ public class Transaction extends BaseEntity {
     private BigDecimal baseAmount;
 
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(nullable = false, columnDefinition = "transaction_status")
     private TransactionStatus status = TransactionStatus.PENDING;
 
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(columnDefinition = "transaction_channel")
     private TransactionChannel channel;
 

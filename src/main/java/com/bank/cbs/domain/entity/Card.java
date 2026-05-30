@@ -5,7 +5,9 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 
 import com.bank.cbs.domain.enums.CardStatus;
 import com.bank.cbs.domain.enums.CardType;
@@ -50,6 +52,7 @@ public class Card extends BaseEntity {
     private String cardLastFour;
 
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(name = "card_type", nullable = false, columnDefinition = "card_type")
     private CardType cardType;
 
@@ -57,6 +60,7 @@ public class Card extends BaseEntity {
     private LocalDate expiryDate;
 
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(nullable = false, columnDefinition = "card_status")
     private CardStatus status = CardStatus.PENDING;
 

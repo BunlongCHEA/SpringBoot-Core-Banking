@@ -5,7 +5,9 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 
 import com.bank.cbs.domain.enums.EntryType;
 
@@ -45,6 +47,7 @@ public class AccountLedger {
     private UUID transactionId;
 
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(name = "entry_type", nullable = false, columnDefinition = "entry_type")
     private EntryType entryType;
 

@@ -4,7 +4,9 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 
 import com.bank.cbs.domain.enums.FeeType;
 
@@ -41,6 +43,7 @@ public class TransactionFee {
     private UUID transactionId;
 
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(name = "fee_type", nullable = false, columnDefinition = "fee_type")
     private FeeType feeType;
 

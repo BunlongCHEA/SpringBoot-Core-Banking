@@ -4,7 +4,9 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 
 import com.bank.cbs.domain.enums.AccountStatus;
 import com.bank.cbs.domain.enums.AccountType;
@@ -46,6 +48,7 @@ public class Account extends BaseEntity {
     private Customer customer;
 
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(name = "account_type", nullable = false, columnDefinition = "account_type")
     private AccountType accountType;
 
@@ -63,6 +66,7 @@ public class Account extends BaseEntity {
     private BigDecimal holdBalance = BigDecimal.ZERO;
 
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(nullable = false, columnDefinition = "account_status")
     private AccountStatus status = AccountStatus.ACTIVE;
 

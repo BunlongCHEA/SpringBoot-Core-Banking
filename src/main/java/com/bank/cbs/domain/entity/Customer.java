@@ -5,7 +5,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 
 import com.bank.cbs.domain.enums.CustomerStatus;
 import com.bank.cbs.domain.enums.CustomerType;
@@ -62,10 +64,12 @@ public class Customer extends BaseEntity {
     private String phone;
 
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(nullable = false, columnDefinition = "customer_status")
     private CustomerStatus status = CustomerStatus.ACTIVE;
 
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(name = "customer_type", nullable = false, columnDefinition = "customer_type")
     private CustomerType customerType = CustomerType.INDIVIDUAL;
 

@@ -24,7 +24,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/cards")
+@RequestMapping("/cards")
 @RequiredArgsConstructor
 @Tag(name = "Cards", description = "Card management APIs, including issuance, activation, and blocking.")
 public class CardController {

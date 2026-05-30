@@ -25,7 +25,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/accounts")
+@RequestMapping("/accounts")
 @RequiredArgsConstructor
 @Tag(name = "Accounts", description = "Account management APIs")
 public class AccountController {

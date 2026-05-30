@@ -4,8 +4,10 @@ import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 import org.hibernate.type.SqlTypes;
 
 import com.bank.cbs.domain.enums.AuditAction;
@@ -43,6 +45,7 @@ public class AuditLog {
     private UUID entityId;
 
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(nullable = false, columnDefinition = "audit_action")
     private AuditAction action;
 

@@ -5,7 +5,9 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 
 import com.bank.cbs.domain.enums.LoanStatus;
 
@@ -74,6 +76,7 @@ public class Loan extends BaseEntity {
     private LocalDate nextPaymentDate;
 
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(nullable = false, columnDefinition = "loan_status")
     private LoanStatus status = LoanStatus.PENDING;
 }

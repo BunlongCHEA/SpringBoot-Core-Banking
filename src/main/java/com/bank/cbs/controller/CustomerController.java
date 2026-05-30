@@ -30,7 +30,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/customers")
+@RequestMapping("/customers")
 @RequiredArgsConstructor
 @Tag(name = "Customers", description = "Customer management APIs, including creation, retrieval, updating, and status management.")
 public class CustomerController {

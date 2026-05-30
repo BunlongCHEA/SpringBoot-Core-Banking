@@ -24,7 +24,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/loans")
+@RequestMapping("/loans")
 @RequiredArgsConstructor
 @Tag(name = "Loans", description = "Loan management APIs, including application, approval, and repayment.")
 public class LoanController {

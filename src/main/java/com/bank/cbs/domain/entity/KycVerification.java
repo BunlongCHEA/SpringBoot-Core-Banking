@@ -4,7 +4,9 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 
 import com.bank.cbs.domain.enums.KycDocumentType;
 import com.bank.cbs.domain.enums.KycStatus;
@@ -43,6 +45,7 @@ public class KycVerification extends BaseEntity {
     private Customer customer;
 
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(name = "document_type", nullable = false, columnDefinition = "kyc_document_type")
     private KycDocumentType documentType;
 
@@ -53,6 +56,7 @@ public class KycVerification extends BaseEntity {
     private LocalDate documentExpiry;
 
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(nullable = false, columnDefinition = "kyc_status")
     private KycStatus status = KycStatus.PENDING;
 
