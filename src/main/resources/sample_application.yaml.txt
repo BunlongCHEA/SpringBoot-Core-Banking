@@ -59,18 +59,14 @@ spring:
   # ── MongoDB ──────────────────────────────────────────────
   data:
     mongodb:
-      uri: ${MONGO_URI:mongodb://}
-      database: ${MONGO_DB:core_banking_logs}
-      auto-index-creation: true
+      uri: ${MONGO_URI:mongodb+srv://user:pass@host/core_banking_logs?appName=ClusterLocal&retryWrites=true&w=majority}
+      # database: ${MONGO_DB:core_banking_logs}
+      auto-index-creation: false
       uuid-representation: standard
 
     # ── Redis ────────────────────────────────────────────────
     redis:
-      host: ${REDIS_HOST:uri}
-      port: ${REDIS_PORT:port}
-      password: ${REDIS_PASSWORD:pass}
-      database: 0
-      timeout: 2000ms
+      url: ${REDIS_URI:redis://user:pass@host:port/0}
       lettuce:
         pool:
           max-active: 20

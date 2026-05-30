@@ -11,6 +11,6 @@ import com.bank.cbs.domain.entity.Beneficiary;
 
 @Repository
 public interface BeneficiaryRepository extends JpaRepository<Beneficiary, UUID> {
-    List<Beneficiary> findByCustomer_CustomerId(UUID customerId);
-    Optional<Beneficiary> findByBeneficiaryAccountNumber(String accountNumber);
+    List<Beneficiary> findByOwnerCustomer_CustomerIdAndIsActiveTrue(UUID customerId);
+    List<Beneficiary> findByAccountNumber(String accountNumber);
 }
