@@ -9,5 +9,5 @@ import com.bank.cbs.domain.entity.Address;
 
 @Repository
 public interface AddressRepository extends JpaRepository<Address, UUID> {
-    
+    // JpaRepository already provides: save(), findById(), findAll(), deleteById()
 }

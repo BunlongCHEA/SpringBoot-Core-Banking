@@ -123,3 +123,12 @@ cbs:
     jwt:
       secret: ${JWT_SECRET:change-this-256-bit-secret-in-production-env}
       expiration-seconds: 3600
+  super-admin:
+    username: superadmin
+    email: superadmin@cbs.bank
+    initial-password: ${CBS_SUPER_ADMIN_INITIAL_PASSWORD}  # min 15 chars, inject via secret
+
+go-kyc:
+  base-url: http://go-blockchain-kyc:8080   # Go_KYC service URL
+  api-key: ${GO_KYC_API_KEY}               # Integration key issued by Go_KYC
+  webhook-secret: ${GO_KYC_WEBHOOK_SECRET} # Shared secret for incoming KYC webhooks

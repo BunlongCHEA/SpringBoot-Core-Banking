@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.bank.cbs.config.GoKycClientService;
 import com.bank.cbs.domain.entity.Address;
+import com.bank.cbs.domain.entity.Branch;
 import com.bank.cbs.domain.entity.Customer;
 import com.bank.cbs.domain.enums.CustomerStatus;
 import com.bank.cbs.domain.enums.CustomerType;
@@ -23,6 +24,7 @@ import com.bank.cbs.exception.BadRequestException;
 import com.bank.cbs.exception.ConflictException;
 import com.bank.cbs.exception.ResourceNotFoundException;
 import com.bank.cbs.repository.jpa.AddressRepository;
+import com.bank.cbs.repository.jpa.BranchRepository;
 import com.bank.cbs.repository.jpa.CustomerRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -37,6 +39,7 @@ public class CustomerService {
 
     private final AddressRepository addressRepository;
     private final GoKycClientService goKycClientService;
+    private final BranchRepository branchRepository;
 
     @Transactional
     public CustomerResponse create(CreateCustomerRequest request) {
@@ -145,6 +148,11 @@ public class CustomerService {
         Address address = buildAddress(kyc.address());
         Address savedAddress = addressRepository.save(address);
 
+        Branch branch = null;
+        if (request.branchId() != null) {
+            branch = branchRepository.findById(request.branchId()).orElse(null);
+        }
+
         // 5. Build and persist Customer
         Customer customer = Customer.builder()
                 .customerCode(kyc.customerId())                  // Go_KYC customer_id
@@ -155,7 +163,7 @@ public class CustomerService {
                 .phone(kyc.phone())
                 .status(CustomerStatus.ACTIVE)                   // VERIFIED → ACTIVE
                 .customerType(CustomerType.INDIVIDUAL)           // static for now
-                .branchId(request.branchId() != null ? request.branchId() : null)
+                .branch(branch) // Branch object, not UUID
                 .build();
 
         // 6. Link address via @ManyToMany join table
