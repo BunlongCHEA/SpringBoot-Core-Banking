@@ -6,6 +6,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bank.cbs.domain.enums.CustomerStatus;
+import com.bank.cbs.dto.request.CreateCustomerFromKycRequest;
 import com.bank.cbs.dto.request.CreateCustomerRequest;
 import com.bank.cbs.dto.request.UpdateCustomerRequest;
 import com.bank.cbs.dto.response.ApiResponse;
@@ -81,5 +83,19 @@ public class CustomerController {
             @RequestParam CustomerStatus status) {
         customerService.updateStatus(customerId, status);
         return ResponseEntity.ok(ApiResponse.ok("Status updated", null));
+    }
+
+    /**
+     * Creates a customer record only after verifying their identity against
+     * the Go-Blockchain-KYC system.
+     *
+     * Required roles: CUSTOMER_SERVICE, ADMIN, SUPER_ADMIN.
+     */
+    @PostMapping("/kyc-verified")
+    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','CUSTOMER_SERVICE')")
+    public ResponseEntity<CustomerResponse> createFromKyc(
+            @Valid @RequestBody CreateCustomerFromKycRequest request) {
+        CustomerResponse response = customerService.createFromKyc(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }
