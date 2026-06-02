@@ -7,17 +7,17 @@ import org.springframework.web.client.RestClient;
 
 @Configuration
 public class GoKycClientConfig {
-    @Value("${go-kyc.base-url}")
+    @Value("${kyc.base-url}")
     private String baseUrl;
 
-    @Value("${go-kyc.api-key}")
+    @Value("${kyc.api-key}")
     private String apiKey;
 
     @Bean("goKycRestClient")
     public RestClient goKycRestClient() {
         return RestClient.builder()
                 .baseUrl(baseUrl)
-                .defaultHeader("X-API-Key", apiKey)
+                .defaultHeader("Authorization", "Bearer " + apiKey) // NextJS integration key
                 .defaultHeader("Content-Type", "application/json")
                 .build();
     }

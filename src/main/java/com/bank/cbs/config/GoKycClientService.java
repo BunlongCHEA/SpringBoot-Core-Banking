@@ -35,8 +35,8 @@ public class GoKycClientService {
     public GoKycVerifyResponse verifyCustomer(String idType, String idNumber, String bankId) {
         try {
             return restClient.post()
-                    .uri("/api/v1/kyc/external-verify")
-                    .body(new ExternalVerifyRequest(idType, idNumber, bankId))
+                    .uri("/api/integration/kyc")
+                    .body(new ExternalVerifyGatewayRequest("external_verify", new ExternalVerifyData(idType, idNumber, bankId)))
                     .retrieve()
                     .body(GoKycVerifyResponse.class);
         } catch (HttpClientErrorException ex) {
@@ -52,10 +52,14 @@ public class GoKycClientService {
         }
     }
 
-    /** Internal request record for the Go_KYC endpoint. */
-    private record ExternalVerifyRequest(
-            String id_type,
-            String id_number,
-            String bank_id
-    ) {}
+    // Request wrapper records:
+    private record ExternalVerifyGatewayRequest(String action, ExternalVerifyData data) {}
+    private record ExternalVerifyData(String id_type, String id_number, String bank_id) {}
+
+    // /** Internal request record for the Go_KYC endpoint. */
+    // private record ExternalVerifyRequest(
+    //         String id_type,
+    //         String id_number,
+    //         String bank_id
+    // ) {}
 }

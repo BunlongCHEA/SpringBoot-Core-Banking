@@ -26,7 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 @RestController
 @RequestMapping("/internal/webhook/kyc")
 public class KycWebhookController {
-    @Value("${go-kyc.webhook-secret}")
+    @Value("${kyc.webhook-secret}")
     private String webhookSecret;
 
     private final CustomerService customerService;
