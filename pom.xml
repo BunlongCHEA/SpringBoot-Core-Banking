@@ -158,6 +158,13 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- Fixes "HTTP/1.1 header parser received no bytes" when calling  -->
+		<dependency>
+			<groupId>org.apache.httpcomponents.client5</groupId>
+			<artifactId>httpclient5</artifactId>
+			<!-- version managed by spring-boot-starter-parent -->
+		</dependency>
+
 		<!-- Testing -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

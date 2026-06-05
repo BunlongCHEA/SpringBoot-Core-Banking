@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "password_history")
+@Table(name = "password_histories")
 @Getter
 @Setter
 @Builder
