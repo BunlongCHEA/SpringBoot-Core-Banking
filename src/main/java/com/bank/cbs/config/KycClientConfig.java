@@ -11,22 +11,18 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
+import lombok.RequiredArgsConstructor;
+
 @Configuration
-public class GoKycClientConfig {
-    @Value("${kyc.base-url}")
-    private String baseUrl;
+@RequiredArgsConstructor
+public class KycClientConfig {
+//     @Value("${kyc.base-url}")
+//     private String baseUrl;
 
-    @Value("${kyc.api-key}")
-    private String apiKey;
+//     @Value("${kyc.api-key}")
+//     private String apiKey;
 
-    // @Bean("goKycRestClient")
-    // public RestClient goKycRestClient() {
-    //     return RestClient.builder()
-    //             .baseUrl(baseUrl)
-    //             .defaultHeader("Authorization", "Bearer " + apiKey) // NextJS integration key
-    //             .defaultHeader("Content-Type", "application/json")
-    //             .build();
-    // }
+    private final KycProperties kycProperties;
 
     @Bean("goKycRestClient")
     public RestClient goKycRestClient() {
@@ -58,8 +54,8 @@ public class GoKycClientConfig {
  
         return RestClient.builder()
                 .requestFactory(factory)
-                .baseUrl(baseUrl)
-                .defaultHeader("Authorization", "Bearer " + apiKey)
+                .baseUrl(kycProperties.getBaseUrl())
+                .defaultHeader("Authorization", "Bearer " + kycProperties.getApiKey())
                 .defaultHeader("Content-Type", "application/json")
                 .build();
     }

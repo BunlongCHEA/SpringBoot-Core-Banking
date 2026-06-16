@@ -28,7 +28,7 @@ public class AuthController {
     private final AuthService authService;
     private final JwtUtil     jwtUtil;       // kept for the dev-only /token shortcut
  
-    // ── Real login ─────────────────────────────────────────────────────────────
+    // ── Login ─────────────────────────────────────────────────────────────
  
     /**
      * POST /api/v1/auth/login

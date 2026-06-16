@@ -130,5 +130,5 @@ cbs:
 
 go-kyc:
   base-url: http://go-blockchain-kyc:8080   # Go_KYC service URL
-  api-key: ${GO_KYC_API_KEY}               # Integration key issued by Go_KYC
-  webhook-secret: ${GO_KYC_WEBHOOK_SECRET} # Shared secret for incoming KYC webhooks
+  api-key: ${KYC_API_KEY}               # Integration key issued by Go_KYC
+  webhook-secret: ${KYC_WEBHOOK_SECRET} # Shared secret for incoming KYC webhooks

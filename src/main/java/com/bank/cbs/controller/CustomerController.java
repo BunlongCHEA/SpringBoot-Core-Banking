@@ -93,9 +93,61 @@ public class CustomerController {
      */
     @PostMapping("/kyc-verified")
     @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','CUSTOMER_SERVICE')")
+    @Operation(summary = "Create customer from verified KYC record (first time only)")
     public ResponseEntity<CustomerResponse> createFromKyc(
             @Valid @RequestBody CreateCustomerFromKycRequest request) {
         CustomerResponse response = customerService.createFromKyc(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * PATCH /api/v1/customers/{customerId}/address/kyc
+     *
+     * Re-verifies the customer against Go-KYC and syncs the address stored
+     * in CBS. Call this on every subsequent KYC submission after the customer
+     * already exists in CBS.
+     *
+     * <h3>Same address (2nd, 3rd … KYC with no move)</h3>
+     * <pre>
+     *   addresses            │ customer_addresses
+     *   ─────────────────────┼──────────────────────
+     *   addr-1 primary=true  │ cust-1 | addr-1
+     *                        │                        ← no rows written at all
+     * </pre>
+     *
+     * <h3>Address changed</h3>
+     * <pre>
+     *   BEFORE               │ AFTER
+     *   ─────────────────────┼──────────────────────────────────────────────
+     *   addr-1 primary=true  │ addr-1 primary=false  ← UPDATE (demoted)
+     *                        │ addr-2 primary=true   ← INSERT (new)
+     *   cust-1 | addr-1      │ cust-1 | addr-1
+     *                        │ cust-1 | addr-2       ← INSERT (new join row)
+     * </pre>
+     *
+     * <h3>Moved back to a previous address (no duplicate INSERT)</h3>
+     * <pre>
+     *   BEFORE               │ AFTER
+     *   ─────────────────────┼──────────────────────────────────────────────
+     *   addr-1 primary=false │ addr-1 primary=true   ← UPDATE (re-promoted)
+     *   addr-2 primary=true  │ addr-2 primary=false  ← UPDATE (demoted)
+     *   cust-1 | addr-1      │ customer_addresses unchanged
+     *   cust-1 | addr-2      │
+     * </pre>
+     *
+     * Roles: SUPER_ADMIN, ADMIN, CUSTOMER_SERVICE
+     */
+    @PatchMapping("/{customerId}/address/kyc")
+    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN','CUSTOMER_SERVICE')")
+    @Operation(
+        summary     = "Sync customer address from latest KYC verification",
+        description = "Idempotent. No writes when address is unchanged. "
+                    + "Demotes old primary and promotes/inserts new when address changes."
+    )
+    public ResponseEntity<ApiResponse<CustomerResponse>> syncAddressFromKyc(
+            @PathVariable UUID customerId,
+            @Valid @RequestBody CreateCustomerFromKycRequest request) {
+        CustomerResponse response = customerService.syncAddressFromKyc(customerId, request);
+        return ResponseEntity.ok(ApiResponse.ok("Address synced from KYC", response));
     }
 }

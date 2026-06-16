@@ -17,26 +17,26 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
-public class GoKycClientService {
+public class KycClientService {
     // ── Type token for the generic wrapper ─────────────────────────────────
     private static final ParameterizedTypeReference<GatewayApiResponse<GoKycVerifyResponse>>
             RESPONSE_TYPE = new ParameterizedTypeReference<>() {};
 
     private final RestClient restClient;
 
-    public GoKycClientService(@Qualifier("goKycRestClient") RestClient restClient) {
+    public KycClientService(@Qualifier("goKycRestClient") RestClient restClient) {
         this.restClient = restClient;
     }
 
     /**
-     * Calls the Go_KYC external-verify endpoint.
+     * Calls the KYC external-verify endpoint.
      *
      * @param idType  document type (e.g. "NATIONAL_ID", "PASSPORT")
      * @param idNumber the document number
-     * @param bankId  the requesting bank's ID in Go_KYC
+     * @param bankId  the requesting bank's ID in KYC
      * @return the verified KYC record
      * @throws ResourceNotFoundException when no matching KYC record exists
-     * @throws BadRequestException       on any Go_KYC client error
+     * @throws BadRequestException       on any KYC client error
      */
     public GoKycVerifyResponse verifyCustomer(String idType, String idNumber, String bankId) {
         try {
@@ -50,14 +50,14 @@ public class GoKycClientService {
                     .body(RESPONSE_TYPE);   // ← unwraps { success, data: GoKycVerifyResponse }
  
             if (gatewayResponse == null) {
-                throw new BadRequestException("Go_KYC gateway returned an empty response.");
+                throw new BadRequestException("KYC gateway returned an empty response.");
             }
             if (!gatewayResponse.success() || gatewayResponse.data() == null) {
                 String reason = gatewayResponse.error() != null
                         ? gatewayResponse.error()
                         : gatewayResponse.message();
-                log.warn("Go_KYC verification failed: {}", reason);
-                throw new BadRequestException("Go_KYC verification failed: " + reason);
+                log.warn("KYC verification failed: {}", reason);
+                throw new BadRequestException("KYC verification failed: " + reason);
             }
  
             return gatewayResponse.data();
@@ -67,12 +67,12 @@ public class GoKycClientService {
                 throw new ResourceNotFoundException(
                         "No KYC record found for idType=" + idType + ", idNumber=" + idNumber);
             }
-            log.error("Go_KYC client error [{}]: {}", ex.getStatusCode(), ex.getResponseBodyAsString());
-            throw new BadRequestException("Go_KYC service returned an error: " + ex.getMessage());
+            log.error("KYC client error [{}]: {}", ex.getStatusCode(), ex.getResponseBodyAsString());
+            throw new BadRequestException("KYC service returned an error: " + ex.getMessage());
  
         } catch (RestClientException ex) {
-            log.error("Go_KYC service unavailable: {}", ex.getMessage());
-            throw new BadRequestException("Go_KYC service is currently unavailable.");
+            log.error("KYC service unavailable: {}", ex.getMessage());
+            throw new BadRequestException("KYC service is currently unavailable.");
         }
     }
 
