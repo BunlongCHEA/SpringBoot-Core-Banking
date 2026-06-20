@@ -18,8 +18,9 @@ public class KycProperties {
     @Getter
     @Setter
     public static class Mq {
-        private String aesKey;
-        private String hmacKey;
-        private String requestSigningSecret;
+        // JSON map of version → base64 32-byte key, e.g. {"v1":"...","v2":"..."}
+        // Populated from a secrets manager / vault in production — env var here for simplicity.
+        private String keysJson;
+        private String requestSigningSecret; // unrelated to MQ — keep for API request signing
     }
 }

@@ -6,8 +6,8 @@ public record KYCEventEnvelope(
     @JsonProperty("message_id")  String messageId,
     @JsonProperty("timestamp")   long   timestamp,
     @JsonProperty("event_type")  String eventType,
-    @JsonProperty("ciphertext")  String ciphertext,
-    @JsonProperty("signature")   String signature
+    @JsonProperty("key_version") String keyVersion,
+    @JsonProperty("ciphertext")  String ciphertext
 ) {
     
 }

@@ -1,15 +1,18 @@
 package com.bank.cbs.config;
 
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
+import java.security.GeneralSecurityException;
+// import java.security.MessageDigest;
 import java.util.Base64;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.crypto.Cipher;
-import javax.crypto.Mac;
+// import javax.crypto.Mac;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-import org.springframework.beans.factory.annotation.Value;
+// import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.bank.cbs.dto.event.KYCEventEnvelope;
@@ -21,47 +24,56 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 public class KycEventDecryptor {
-    private final SecretKeySpec aesKey;
-    private final SecretKeySpec hmacKey;
-    private final ObjectMapper  objectMapper;
 
-    public KycEventDecryptor(
-            KycProperties kycProperties, 
-            ObjectMapper objectMapper
-    ) {
-        byte[] aes  = Base64.getDecoder().decode(kycProperties.getMq().getAesKey());
-        byte[] hmac = Base64.getDecoder().decode(kycProperties.getMq().getHmacKey());
+    private static final int NONCE_LEN   = 12;  // GCM standard
+    private static final int TAG_BITS    = 128; // GCM auth tag length
 
-        if (aes.length != 32 || hmac.length != 32)
-            throw new IllegalStateException("MQ keys must be 32 bytes");
-        this.aesKey  = new SecretKeySpec(aes,  "AES");
-        this.hmacKey = new SecretKeySpec(hmac, "HmacSHA256");
+    private final Map<String, SecretKeySpec> keysByVersion = new ConcurrentHashMap<>();
+    private final ObjectMapper objectMapper;
+
+    public KycEventDecryptor(KycProperties kycProperties, ObjectMapper objectMapper) throws Exception {
         this.objectMapper = objectMapper;
-    }
 
-    public boolean verifySignature(KYCEventEnvelope env) {
-        try {
-            Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(hmacKey);
-            String canonical = env.messageId() + "|" + env.timestamp() + "|" + env.ciphertext();
-            byte[] expected = mac.doFinal(canonical.getBytes(StandardCharsets.UTF_8));
-            byte[] actual   = Base64.getDecoder().decode(env.signature());
-            return MessageDigest.isEqual(expected, actual); // constant-time compare
-        } catch (Exception e) {
-            log.error("HMAC verification error: {}", e.getMessage());
-            return false;
+        Map<String, String> raw = objectMapper.readValue(
+                kycProperties.getMq().getKeysJson(),
+                objectMapper.getTypeFactory().constructMapType(Map.class, String.class, String.class));
+
+        for (var entry : raw.entrySet()) {
+            byte[] keyBytes = Base64.getDecoder().decode(entry.getValue());
+            if (keyBytes.length != 32) {
+                throw new IllegalStateException(
+                    "MQ key " + entry.getKey() + " must decode to 32 bytes, got " + keyBytes.length);
+            }
+            keysByVersion.put(entry.getKey(), new SecretKeySpec(keyBytes, "AES"));
         }
+        log.info("[KycEventDecryptor] loaded {} MQ key version(s): {}", keysByVersion.size(), keysByVersion.keySet());
     }
 
-    public KycStatusPayload decrypt(KYCEventEnvelope env) throws Exception {
+    /**
+     * Decrypts and authenticates in one step. GCM's Open() (Java: doFinal)
+     * fails with AEADBadTagException if EITHER the ciphertext OR the AAD
+     * (envelope metadata) was tampered with — this replaces the separate
+     * HMAC verification step entirely.
+     */
+    public KycStatusPayload decryptAndVerify(KYCEventEnvelope env) throws GeneralSecurityException, Exception {
+        SecretKeySpec key = keysByVersion.get(env.keyVersion());
+        if (key == null) {
+            throw new IllegalStateException("Unknown MQ key version: " + env.keyVersion()
+                + " — key may have rotated out of retention, or config is stale");
+        }
+
         byte[] sealed = Base64.getDecoder().decode(env.ciphertext());
-        int nonceLen  = 12; // GCM standard nonce size
-        GCMParameterSpec spec = new GCMParameterSpec(128, sealed, 0, nonceLen);
 
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-        cipher.init(Cipher.DECRYPT_MODE, aesKey, spec);
-        
-        byte[] plaintext = cipher.doFinal(sealed, nonceLen, sealed.length - nonceLen);
+        GCMParameterSpec spec = new GCMParameterSpec(TAG_BITS, sealed, 0, NONCE_LEN);
+        cipher.init(Cipher.DECRYPT_MODE, key, spec);
+
+        // Reconstruct the EXACT same AAD the publisher used — any field
+        // mismatch here causes doFinal() to throw AEADBadTagException.
+        String aad = env.messageId() + "|" + env.timestamp() + "|" + env.eventType() + "|" + env.keyVersion();
+        cipher.updateAAD(aad.getBytes(StandardCharsets.UTF_8));
+
+        byte[] plaintext = cipher.doFinal(sealed, NONCE_LEN, sealed.length - NONCE_LEN);
         return objectMapper.readValue(plaintext, KycStatusPayload.class);
     }
 }
