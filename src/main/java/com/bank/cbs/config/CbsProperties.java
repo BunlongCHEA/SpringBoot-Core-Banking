@@ -1,5 +1,7 @@
 package com.bank.cbs.config;
 
+import java.util.List;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.security.autoconfigure.SecurityProperties;
 import org.springframework.boot.transaction.autoconfigure.TransactionProperties;
@@ -28,7 +30,20 @@ public record CbsProperties(
         java.math.BigDecimal maxSingleTransfer
     ) {}
 
-    public record SecurityProperties(JwtProperties jwt) {
+    public record SecurityProperties(JwtProperties jwt, CorsProperties cors) {
         public record JwtProperties(String secret, long expirationSeconds) {}
+
+        /**
+         * CORS allowed origins loaded from cbs.security.cors.allowed-origins.
+         * Add any front-end origin that needs to reach this API:
+         *   - http://localhost:3000   (Next.js dev server)
+         *   - https://cbs.yourbank.com (production UI)
+         */
+        public record CorsProperties(List<String> allowedOrigins) {
+            // Provide a safe default so the app starts even if the property is missing.
+            public CorsProperties {
+                if (allowedOrigins == null) allowedOrigins = List.of("http://localhost:3000");
+            }
+        }
     } 
 }

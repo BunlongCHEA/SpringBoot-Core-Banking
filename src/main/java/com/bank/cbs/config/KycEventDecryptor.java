@@ -2,17 +2,15 @@ package com.bank.cbs.config;
 
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
-// import java.security.MessageDigest;
 import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.crypto.Cipher;
-// import javax.crypto.Mac;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-// import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import com.bank.cbs.dto.event.KYCEventEnvelope;
@@ -23,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
+@ConditionalOnProperty(name = "rabbitmq.enabled", havingValue = "true")
 public class KycEventDecryptor {
 
     private static final int NONCE_LEN   = 12;  // GCM standard
@@ -33,11 +32,21 @@ public class KycEventDecryptor {
 
     public KycEventDecryptor(KycProperties kycProperties, ObjectMapper objectMapper) throws Exception {
         this.objectMapper = objectMapper;
-
+ 
+        // BUG FIX: guard against null/blank keysJson.
+        // kyc.mq.keys-json is optional in dev; if absent the bean still
+        // initialises, but decryptAndVerify() will throw at call-time.
+        String keysJson = kycProperties.getMq().getKeysJson();
+        if (keysJson == null || keysJson.isBlank()) {
+            log.warn("[KycEventDecryptor] kyc.mq.keys-json is not configured — "
+                   + "MQ message decryption will be unavailable until the property is set.");
+            return;
+        }
+ 
         Map<String, String> raw = objectMapper.readValue(
-                kycProperties.getMq().getKeysJson(),
+                keysJson,
                 objectMapper.getTypeFactory().constructMapType(Map.class, String.class, String.class));
-
+ 
         for (var entry : raw.entrySet()) {
             byte[] keyBytes = Base64.getDecoder().decode(entry.getValue());
             if (keyBytes.length != 32) {
@@ -46,7 +55,8 @@ public class KycEventDecryptor {
             }
             keysByVersion.put(entry.getKey(), new SecretKeySpec(keyBytes, "AES"));
         }
-        log.info("[KycEventDecryptor] loaded {} MQ key version(s): {}", keysByVersion.size(), keysByVersion.keySet());
+        log.info("[KycEventDecryptor] loaded {} MQ key version(s): {}",
+                 keysByVersion.size(), keysByVersion.keySet());
     }
 
     /**
@@ -56,6 +66,11 @@ public class KycEventDecryptor {
      * HMAC verification step entirely.
      */
     public KycStatusPayload decryptAndVerify(KYCEventEnvelope env) throws GeneralSecurityException, Exception {
+        if (keysByVersion.isEmpty()) {
+            throw new IllegalStateException(
+                "[KycEventDecryptor] No MQ keys loaded — set kyc.mq.keys-json before processing messages.");
+        }
+
         SecretKeySpec key = keysByVersion.get(env.keyVersion());
         if (key == null) {
             throw new IllegalStateException("Unknown MQ key version: " + env.keyVersion()

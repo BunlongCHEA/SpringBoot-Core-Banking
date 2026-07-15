@@ -126,9 +126,23 @@ cbs:
   super-admin:
     username: superadmin
     email: superadmin@cbs.bank
-    initial-password: ${CBS_SUPER_ADMIN_INITIAL_PASSWORD}  # min 15 chars, inject via secret
+    initial-password: ${CBS_SUPER_ADMIN_INITIAL_PASSWORD:test}  # min 15 chars, inject via secret
 
-go-kyc:
-  base-url: http://go-blockchain-kyc:8080   # Go_KYC service URL
-  api-key: ${KYC_API_KEY}               # Integration key issued by Go_KYC
-  webhook-secret: ${KYC_WEBHOOK_SECRET} # Shared secret for incoming KYC webhooks
+kyc:
+  base-url: ${KYC_BASE_URL:http://localhost:3000}   # service URL
+  api-key: ${KYC_API_KEY:kyk_da237f1bf1a65c94f6e1de8344888370b2b491afd1c5f6f104b62c5e758d78a1}               # Integration key issued
+  # webhook-secret: ${KYC_WEBHOOK_SECRET:1e27cd3e32e4b77eb155468ec863c6ea16004e15caa5bc94776d77b0f76fa416} # Shared secret for incoming KYC webhooks
+  mq:
+    keys-json: '{"v1":"${KYC_MQ_KEY_V1:Q0JTLURFVi1LRVktdjEtLTMyQllURVMtUEFERElORyE=}"}'
+    request-signing-secret: ${CBS_HMAC_SECRET:dev-signing-secret-replace-in-prod}
+
+rabbitmq:
+    enabled: false        # ← flip to true once RabbitMQ is installed
+    host: ${RABBITMQ_HOST:rabbitmq}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:cbs_consumer}
+    password: ${RABBITMQ_PASS}
+    virtual-host: kyc_vhost
+    ssl:
+      enabled: false  # set to true in production with a real broker 
+      verify-hostname: false
