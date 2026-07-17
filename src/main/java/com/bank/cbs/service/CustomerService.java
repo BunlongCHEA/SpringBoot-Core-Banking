@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +18,7 @@ import com.bank.cbs.domain.entity.Branch;
 import com.bank.cbs.domain.entity.Customer;
 import com.bank.cbs.domain.enums.CustomerStatus;
 import com.bank.cbs.domain.enums.CustomerType;
+import com.bank.cbs.domain.specification.CustomerSpecifications;
 import com.bank.cbs.dto.request.CreateCustomerFromKycRequest;
 import com.bank.cbs.dto.request.CreateCustomerRequest;
 import com.bank.cbs.dto.request.UpdateCustomerRequest;
@@ -78,7 +80,11 @@ public class CustomerService {
 
     @Transactional(readOnly = true)
     public Page<CustomerResponse> search(CustomerStatus status, String search, Pageable pageable) {
-        return customerRepository.searchCustomers(status, search, pageable)
+        Specification<Customer> spec = Specification
+            .where(CustomerSpecifications.withStatus(status))
+            .and(CustomerSpecifications.matchingSearch(search));
+
+        return customerRepository.findAll(spec, pageable)
             .map(CustomerResponse::from);
     }
 
