@@ -82,6 +82,8 @@ CREATE TABLE customers (
     status          customer_status NOT NULL DEFAULT 'ACTIVE',
     customer_type   customer_type   NOT NULL DEFAULT 'INDIVIDUAL',
     branch_id       UUID            REFERENCES branches(branch_id),
+    bank_id         VARCHAR(50),
+    id_type         VARCHAR(50),
     created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ
 );

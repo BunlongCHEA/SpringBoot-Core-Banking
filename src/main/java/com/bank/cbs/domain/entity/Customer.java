@@ -89,4 +89,10 @@ public class Customer extends BaseEntity {
     )
     @Builder.Default
     private List<Address> addresses = new ArrayList<>();
+
+    @Column(name = "bank_id", length = 50)
+    private String bankId;
+
+    @Column(name = "id_type", length = 50)
+    private String idType;
 }

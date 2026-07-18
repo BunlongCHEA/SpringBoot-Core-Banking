@@ -170,6 +170,8 @@ public class CustomerService {
                 .status(CustomerStatus.ACTIVE)                   // VERIFIED → ACTIVE
                 .customerType(CustomerType.INDIVIDUAL)           // static for now
                 .branch(branch) // Branch object, not UUID
+                .bankId(request.bankId())     // ← new
+                .idType(request.idType()) 
                 .build();
 
         // 6. Link address via @ManyToMany join table
@@ -255,6 +257,9 @@ public class CustomerService {
                     "KYC record (customerId=" + kyc.customerId()
                     + ") does not belong to customer " + customerId);
         }
+
+        customer.setBankId(request.bankId());   // backfills legacy rows too
+        customer.setIdType(request.idType());
  
         // 4. Sync — handles A / B / B2 transparently
         syncAddress(customer, kyc.address());

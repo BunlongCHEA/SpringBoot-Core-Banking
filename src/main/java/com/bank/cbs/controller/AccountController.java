@@ -47,6 +47,14 @@ public class AccountController {
         return ResponseEntity.ok(ApiResponse.ok(accountService.findById(accountId)));
     }
 
+    @GetMapping("/number/{accountNumber}")
+    @Operation(summary = "Get account by account number")
+    public ResponseEntity<ApiResponse<AccountResponse>> findByAccountNumber(
+            @PathVariable String accountNumber) {
+        return ResponseEntity.ok(ApiResponse.ok(AccountResponse.from(
+            accountService.getByAccountNumberOrThrow(accountNumber))));
+    }
+
     @GetMapping("/customers/{customerId}")
     @Operation(summary = "Get all accounts for a customer")
     public ResponseEntity<ApiResponse<List<AccountResponse>>> findByCustomer(
@@ -66,6 +74,13 @@ public class AccountController {
     public ResponseEntity<ApiResponse<Void>> freeze(@PathVariable UUID accountId) {
         accountService.freeze(accountId);
         return ResponseEntity.ok(ApiResponse.ok("Account frozen", null));
+    }
+
+    @PatchMapping("/{accountId}/unfreeze")
+    @Operation(summary = "Unfreeze a frozen account")
+    public ResponseEntity<ApiResponse<Void>> unfreeze(@PathVariable UUID accountId) {
+        accountService.unfreeze(accountId);
+        return ResponseEntity.ok(ApiResponse.ok("Account unfrozen", null));
     }
 
     @PatchMapping("/{accountId}/close")

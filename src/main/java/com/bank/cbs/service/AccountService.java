@@ -87,6 +87,17 @@ public class AccountService {
     }
 
     @Transactional
+    public void unfreeze(UUID accountId) {
+        Account account = getOrThrow(accountId);
+        if (account.getStatus() != AccountStatus.FROZEN) {
+            throw new BusinessException("Only a FROZEN account can be unfrozen. Current status: " + account.getStatus());
+        }
+        account.setStatus(AccountStatus.ACTIVE);
+        accountRepository.save(account);
+        balanceCacheRedisService.evict(accountId.toString());
+    }
+
+    @Transactional
     public void close(UUID accountId) {
         Account account = getOrThrow(accountId);
         if (account.getBalance().compareTo(BigDecimal.ZERO) != 0) {

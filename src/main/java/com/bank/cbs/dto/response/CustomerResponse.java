@@ -18,14 +18,15 @@ public record CustomerResponse(
     LocalDate      dateOfBirth,
     CustomerStatus status,
     CustomerType   customerType,
+    String         bankId, 
+    String         idType,
     OffsetDateTime createdAt
 ) {
     public static CustomerResponse from(Customer c) {
         return new CustomerResponse(
             c.getCustomerId(), c.getCustomerCode(), c.getFullName(),
             c.getEmail(), c.getPhone(), c.getNationalId(),
-            c.getDateOfBirth(), c.getStatus(), c.getCustomerType(),
-            c.getCreatedAt()
+            c.getDateOfBirth(), c.getStatus(), c.getCustomerType(), c.getBankId(), c.getIdType(), c.getCreatedAt()
         );
     }
 }
