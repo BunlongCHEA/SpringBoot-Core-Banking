@@ -1,6 +1,7 @@
 package com.bank.cbs.service;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
@@ -16,8 +17,11 @@ import com.bank.cbs.config.KycClientService;
 import com.bank.cbs.domain.entity.Address;
 import com.bank.cbs.domain.entity.Branch;
 import com.bank.cbs.domain.entity.Customer;
+import com.bank.cbs.domain.entity.KycVerification;
 import com.bank.cbs.domain.enums.CustomerStatus;
 import com.bank.cbs.domain.enums.CustomerType;
+import com.bank.cbs.domain.enums.KycDocumentType;
+import com.bank.cbs.domain.enums.KycStatus;
 import com.bank.cbs.domain.specification.CustomerSpecifications;
 import com.bank.cbs.dto.request.CreateCustomerFromKycRequest;
 import com.bank.cbs.dto.request.CreateCustomerRequest;
@@ -30,6 +34,7 @@ import com.bank.cbs.exception.ResourceNotFoundException;
 import com.bank.cbs.repository.jpa.AddressRepository;
 import com.bank.cbs.repository.jpa.BranchRepository;
 import com.bank.cbs.repository.jpa.CustomerRepository;
+import com.bank.cbs.repository.jpa.KycVerificationRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +49,7 @@ public class CustomerService {
     private final AddressRepository addressRepository;
     private final KycClientService goKycClientService;
     private final BranchRepository branchRepository;
+    private final KycVerificationRepository kycVerificationRepository;
 
     @Transactional
     public CustomerResponse create(CreateCustomerRequest request) {
@@ -135,14 +141,14 @@ public class CustomerService {
     @Transactional
     public CustomerResponse createFromKyc(CreateCustomerFromKycRequest request) {
 
-        // 1. Call Go_KYC
+        // Call Go_KYC
         GoKycVerifyResponse kyc =
                 goKycClientService.verifyCustomer(request.idType(), request.idNumber(), request.bankId());
 
-        // 2. Validate all required conditions
+        // Validate all required conditions
         validateKycResponse(kyc);
 
-        // 3. Guard against duplicate registration
+        // Guard against duplicate registration
         if (customerRepository.existsByCustomerCode(kyc.customerId())) {
             throw new ConflictException(
                     "Customer already exists with KYC ID: " + kyc.customerId());
@@ -151,7 +157,7 @@ public class CustomerService {
             throw new ConflictException("Email already registered: " + kyc.email());
         }
 
-        // 4. Build and persist Address
+        // Build and persist Address
         Address address = buildAddress(kyc.address());
         Address savedAddress = addressRepository.save(address);
 
@@ -159,7 +165,7 @@ public class CustomerService {
                 ? branchRepository.findById(request.branchId()).orElse(null)
                 : null;
 
-        // 5. Build and persist Customer
+        // Build and persist Customer
         Customer customer = Customer.builder()
                 .customerCode(kyc.customerId())                  // Go_KYC customer_id
                 .fullName(kyc.firstName() + " " + kyc.lastName())
@@ -174,10 +180,21 @@ public class CustomerService {
                 .idType(request.idType()) 
                 .build();
 
-        // 6. Link address via @ManyToMany join table
+        // Link address via @ManyToMany join table
         customer.getAddresses().add(savedAddress);
 
+        // Persist Customer (managed entity — any collection changes are tracked)
         Customer saved = customerRepository.save(customer);
+
+        // Persist a KYC record with VERIFIED status (For KYC tracking)
+        kycVerificationRepository.save(KycVerification.builder()
+            .customer(saved)
+            .documentType(KycDocumentType.valueOf(request.idType()))
+            .documentNumber(request.idNumber())
+            .status(KycStatus.VERIFIED)
+            .verifiedAt(OffsetDateTime.now())
+            .build());
+        
         log.info("Customer created via KYC: code={} kycId={}",
                 saved.getCustomerCode(), kyc.customerId());
         return CustomerResponse.from(saved);
@@ -243,15 +260,15 @@ public class CustomerService {
     @Transactional
     public CustomerResponse syncAddressFromKyc(UUID customerId, CreateCustomerFromKycRequest request) {
  
-        // 1. Load the customer (managed entity — any collection changes are tracked)
+        // Load the customer (managed entity — any collection changes are tracked)
         Customer customer = getOrThrow(customerId);
  
-        // 2. Re-verify against Go_KYC to get the latest address
+        // Re-verify against Go_KYC to get the latest address
         GoKycVerifyResponse kyc =
                 goKycClientService.verifyCustomer(request.idType(), request.idNumber(), request.bankId());
         validateKycResponse(kyc);
  
-        // 3. Make sure this KYC record belongs to this customer
+        // Make sure this KYC record belongs to this customer
         if (!customer.getCustomerCode().equals(kyc.customerId())) {
             throw new BadRequestException(
                     "KYC record (customerId=" + kyc.customerId()
@@ -261,9 +278,18 @@ public class CustomerService {
         customer.setBankId(request.bankId());   // backfills legacy rows too
         customer.setIdType(request.idType());
  
-        // 4. Sync — handles A / B / B2 transparently
+        // Sync — handles A / B / B2 transparently
         syncAddress(customer, kyc.address());
  
+        // Persist a KYC record with VERIFIED status (For KYC tracking)
+        kycVerificationRepository.save(KycVerification.builder()
+            .customer(customer)
+            .documentType(KycDocumentType.valueOf(request.idType()))
+            .documentNumber(request.idNumber())
+            .status(KycStatus.VERIFIED)
+            .verifiedAt(OffsetDateTime.now())
+            .build());
+
         log.info("Address synced for customer={} from KYC", customerId);
         return CustomerResponse.from(customerRepository.save(customer));
     }

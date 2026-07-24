@@ -15,6 +15,7 @@ import com.bank.cbs.config.CbsProperties;
 import com.bank.cbs.domain.entity.Account;
 import com.bank.cbs.domain.entity.AccountLedger;
 import com.bank.cbs.domain.entity.Transaction;
+import com.bank.cbs.domain.entity.TransactionReference;
 import com.bank.cbs.domain.enums.AccountStatus;
 import com.bank.cbs.domain.enums.EntryType;
 import com.bank.cbs.domain.enums.TransactionStatus;
@@ -26,6 +27,7 @@ import com.bank.cbs.exception.DuplicateTransactionException;
 import com.bank.cbs.repository.jpa.AccountLedgerRepository;
 import com.bank.cbs.repository.jpa.AccountRepository;
 import com.bank.cbs.repository.jpa.CurrencyRepository;
+import com.bank.cbs.repository.jpa.TransactionReferenceRepository;
 import com.bank.cbs.repository.jpa.TransactionRepository;
 import com.bank.cbs.service.redis.BalanceCacheRedisService;
 import com.bank.cbs.service.redis.DistributedLockRedisService;
@@ -43,9 +45,10 @@ public class TransactionService {
     private final AccountLedgerRepository    ledgerRepository;
     private final CurrencyRepository         currencyRepository;
     private final DistributedLockRedisService lockService;
-    private final IdempotencyRedisService    idempotencyService;
+    private final IdempotencyService         idempotencyService;
     private final BalanceCacheRedisService   balanceCacheService;
     private final CbsProperties              cbsProperties;
+    private final TransactionReferenceRepository referenceRepository;
 
     @Transactional
     public TransactionResponse transfer(TransactionRequest request) {
@@ -102,7 +105,15 @@ public class TransactionService {
             Transaction saved = transactionRepository.save(txn);
             postLedgerEntries(saved, null, credit);
             balanceCacheService.evict(credit.getAccountId().toString());
-            idempotencyService.save(request.idempotencyKey(), saved.getTransactionId().toString());
+
+            // idempotencyService.save(request.idempotencyKey(), saved.getTransactionId().toString());
+            idempotencyService.save(saved.getIdempotencyKey(), saved.getTransactionId(), saved.getInitiatedAt());
+
+            referenceRepository.save(TransactionReference.builder()
+                .referenceNumber(saved.getReferenceNumber())
+                .transactionId(saved.getTransactionId())
+                .initiatedAt(saved.getInitiatedAt())
+                .build());
             log.info("Deposit completed: {}", saved.getReferenceNumber());
             return TransactionResponse.from(saved);
         } finally {
@@ -125,7 +136,15 @@ public class TransactionService {
             Transaction saved = transactionRepository.save(txn);
             postLedgerEntries(saved, debit, null);
             balanceCacheService.evict(debit.getAccountId().toString());
-            idempotencyService.save(request.idempotencyKey(), saved.getTransactionId().toString());
+
+            // idempotencyService.save(request.idempotencyKey(), saved.getTransactionId().toString());
+            idempotencyService.save(saved.getIdempotencyKey(), saved.getTransactionId(), saved.getInitiatedAt());
+
+            referenceRepository.save(TransactionReference.builder()
+                .referenceNumber(saved.getReferenceNumber())
+                .transactionId(saved.getTransactionId())
+                .initiatedAt(saved.getInitiatedAt())
+                .build());
             log.info("Withdrawal completed: {}", saved.getReferenceNumber());
             return TransactionResponse.from(saved);
         } finally {
@@ -152,7 +171,15 @@ public class TransactionService {
         postLedgerEntries(saved, debit, credit);
         balanceCacheService.evict(debit.getAccountId().toString());
         balanceCacheService.evict(credit.getAccountId().toString());
-        idempotencyService.save(request.idempotencyKey(), saved.getTransactionId().toString());
+
+        // idempotencyService.save(request.idempotencyKey(), saved.getTransactionId().toString());
+        idempotencyService.save(saved.getIdempotencyKey(), saved.getTransactionId(), saved.getInitiatedAt());
+        
+        referenceRepository.save(TransactionReference.builder()
+            .referenceNumber(saved.getReferenceNumber())
+            .transactionId(saved.getTransactionId())
+            .initiatedAt(saved.getInitiatedAt())
+            .build());
         log.info("Transfer completed: {}", saved.getReferenceNumber());
         return TransactionResponse.from(saved);
     }
@@ -232,8 +259,11 @@ public class TransactionService {
     }
 
     private String generateReference() {
-        return "TXN" + System.currentTimeMillis()
-            + String.valueOf(ThreadLocalRandom.current().nextInt(1000, 9999));
+        String ref;
+        do {
+            ref = "TXN" + System.currentTimeMillis() + ThreadLocalRandom.current().nextInt(1000, 9999);
+        } while (referenceRepository.existsById(ref));
+        return ref;
     }
 
     private static final java.util.concurrent.ThreadLocalRandom ThreadLocalRandom =

@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.bank.cbs.domain.entity.Customer;
 import com.bank.cbs.domain.entity.KycVerification;
+import com.bank.cbs.domain.enums.KycDocumentType;
 import com.bank.cbs.domain.enums.KycStatus;
 import com.bank.cbs.dto.request.KycRequest;
 import com.bank.cbs.dto.response.KycResponse;
@@ -63,6 +64,19 @@ public class KycService {
     public List<KycResponse> findByCustomer(UUID customerId) {
         return kycRepository.findByCustomer_CustomerIdOrderByCreatedAtDesc(customerId)
             .stream().map(KycResponse::from).toList();
+    }
+
+    // recordExternalVerification used for external KYC verification, e.g., via third-party service. It creates a KYC record with VERIFIED status.
+    @Transactional
+    public KycResponse recordExternalVerification(Customer customer, String idTypeRaw, String documentNumber) {
+        KycVerification kyc = KycVerification.builder()
+            .customer(customer)
+            .documentType(KycDocumentType.valueOf(idTypeRaw))
+            .documentNumber(documentNumber)
+            .status(KycStatus.VERIFIED)
+            .verifiedAt(OffsetDateTime.now())
+            .build();
+        return KycResponse.from(kycRepository.save(kyc));
     }
 
     private KycVerification getOrThrow(UUID kycId) {

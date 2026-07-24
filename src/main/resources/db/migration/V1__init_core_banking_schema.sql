@@ -101,11 +101,27 @@ CREATE TABLE customer_addresses (
 );
 
 -- ── ACCOUNTS ─────────────────────────────────────────────────
+CREATE TABLE account_types (
+    account_type_id   UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+    code              VARCHAR(30)   NOT NULL UNIQUE,
+    name              VARCHAR(100)  NOT NULL,
+    is_credit_nature  BOOLEAN       NOT NULL DEFAULT TRUE,  -- TRUE = liability (deposit), FALSE = asset (loan)
+    is_active         BOOLEAN       NOT NULL DEFAULT TRUE,
+    created_at        TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO account_types (code, name, is_credit_nature) VALUES
+    ('SAVINGS',       'Savings Account',       TRUE),
+    ('CHECKING',      'Checking Account',      TRUE),
+    ('CURRENT',       'Current Account',       TRUE),
+    ('FIXED_DEPOSIT', 'Fixed Deposit Account', TRUE),
+    ('LOAN',          'Loan Account',          FALSE);
+
 CREATE TABLE accounts (
     account_id          UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
     account_number      VARCHAR(20)     NOT NULL UNIQUE,
     customer_id         UUID            NOT NULL REFERENCES customers(customer_id),
-    account_type        account_type    NOT NULL,
+    account_type_id     UUID            NOT NULL REFERENCES account_types(account_type_id),
     currency_code       VARCHAR(3)      NOT NULL REFERENCES currencies(currency_code),
     balance             NUMERIC(20,4)   NOT NULL DEFAULT 0 CHECK (balance >= 0),
     available_balance   NUMERIC(20,4)   NOT NULL DEFAULT 0 CHECK (available_balance >= 0),
@@ -126,6 +142,7 @@ CREATE INDEX idx_accounts_customer ON accounts(customer_id);
 CREATE INDEX idx_accounts_number   ON accounts(account_number);
 CREATE INDEX idx_accounts_status   ON accounts(status);
 CREATE INDEX idx_accounts_currency ON accounts(currency_code);
+CREATE INDEX idx_accounts_account_type ON accounts(account_type_id);
 
 -- ── TRANSACTIONS (partitioned) ───────────────────────────────
 -- PRIMARY KEY must include the partition key column (initiated_at).

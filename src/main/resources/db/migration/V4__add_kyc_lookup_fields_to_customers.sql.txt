@@ -1,2 +1,0 @@
-ALTER TABLE customers ADD COLUMN bank_id VARCHAR(50);
-ALTER TABLE customers ADD COLUMN id_type VARCHAR(50);

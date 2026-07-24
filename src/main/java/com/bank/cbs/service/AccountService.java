@@ -10,13 +10,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.bank.cbs.domain.entity.Account;
+import com.bank.cbs.domain.entity.AccountType;
 import com.bank.cbs.domain.entity.Customer;
 import com.bank.cbs.domain.enums.AccountStatus;
+// import com.bank.cbs.domain.enums.AccountType;
 import com.bank.cbs.dto.request.CreateAccountRequest;
 import com.bank.cbs.dto.response.AccountResponse;
 import com.bank.cbs.exception.BusinessException;
 import com.bank.cbs.exception.ResourceNotFoundException;
 import com.bank.cbs.repository.jpa.AccountRepository;
+import com.bank.cbs.repository.jpa.AccountTypeRepository;
 import com.bank.cbs.repository.jpa.CurrencyRepository;
 import com.bank.cbs.service.redis.BalanceCacheRedisService;
 
@@ -31,9 +34,22 @@ public class AccountService {
     private final CurrencyRepository      currencyRepository;
     private final CustomerService         customerService;
     private final BalanceCacheRedisService balanceCacheRedisService;
+    private final AccountTypeRepository   accountTypeRepository;
 
     @Transactional
     public AccountResponse create(UUID customerId, CreateAccountRequest request) {
+        AccountType accountType = accountTypeRepository.findById(request.accountTypeId())
+        .orElseThrow(() -> new BusinessException("Unknown account type: " + request.accountTypeId()));
+
+        if (!accountType.isActive()) {
+            throw new BusinessException("Account type is not active: " + accountType.getCode());
+        }
+        if (!accountType.isCreditNature()) {
+            throw new BusinessException(
+                accountType.getName() + " accounts are created automatically through their own workflow " +
+                "(e.g. loan disbursement) — not through direct account opening.");
+        }
+        
         Customer customer = customerService.getOrThrow(customerId);
 
         var currency = currencyRepository.findById(request.currencyCode())
@@ -42,7 +58,7 @@ public class AccountService {
         Account account = Account.builder()
             .accountNumber(generateAccountNumber())
             .customer(customer)
-            .accountType(request.accountType())
+            .accountType(accountType)
             .currency(currency)
             .balance(BigDecimal.ZERO)
             .availableBalance(BigDecimal.ZERO)

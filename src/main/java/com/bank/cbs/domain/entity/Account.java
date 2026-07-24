@@ -9,7 +9,7 @@ import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 
 import com.bank.cbs.domain.enums.AccountStatus;
-import com.bank.cbs.domain.enums.AccountType;
+// import com.bank.cbs.domain.enums.AccountType;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -47,9 +47,8 @@ public class Account extends BaseEntity {
     @JoinColumn(name = "customer_id", nullable = false)
     private Customer customer;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcType(PostgreSQLEnumJdbcType.class)
-    @Column(name = "account_type", nullable = false, columnDefinition = "account_type")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "account_type_id", nullable = false)
     private AccountType accountType;
 
     @ManyToOne(fetch = FetchType.LAZY)

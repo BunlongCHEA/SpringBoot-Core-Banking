@@ -13,7 +13,7 @@ import org.springframework.stereotype.Repository;
 
 import com.bank.cbs.domain.entity.Account;
 import com.bank.cbs.domain.enums.AccountStatus;
-import com.bank.cbs.domain.enums.AccountType;
+import com.bank.cbs.domain.entity.AccountType;
 
 @Repository
 public interface AccountRepository extends JpaRepository<Account, UUID> {
