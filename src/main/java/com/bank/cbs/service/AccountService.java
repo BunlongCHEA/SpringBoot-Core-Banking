@@ -130,7 +130,7 @@ public class AccountService {
             .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + accountId));
     }
 
-    public Account getByAccountNumberOrThrow(String accountNumber) {
+    public AccountResponse getByAccountNumberOrThrow(String accountNumber) {
         return accountRepository.findByAccountNumber(accountNumber)
             .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + accountNumber));
     }

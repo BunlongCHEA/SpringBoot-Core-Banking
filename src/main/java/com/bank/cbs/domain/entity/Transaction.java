@@ -8,7 +8,7 @@ import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 
-import com.bank.cbs.domain.enums.TransactionChannel;
+// import com.bank.cbs.domain.enums.TransactionChannel;
 import com.bank.cbs.domain.enums.TransactionStatus;
 import com.bank.cbs.domain.enums.TransactionType;
 
@@ -78,10 +78,13 @@ public class Transaction extends BaseEntity {
     @Column(nullable = false, columnDefinition = "transaction_status")
     private TransactionStatus status = TransactionStatus.PENDING;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcType(PostgreSQLEnumJdbcType.class)
-    @Column(columnDefinition = "transaction_channel")
-    private TransactionChannel channel;
+    // @Enumerated(EnumType.STRING)
+    // @JdbcType(PostgreSQLEnumJdbcType.class)
+    // @Column(columnDefinition = "transaction_channel")
+    // private TransactionChannel channel;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "channel_id")
+    private Channel channel;
 
     @Column(length = 500)
     private String description;

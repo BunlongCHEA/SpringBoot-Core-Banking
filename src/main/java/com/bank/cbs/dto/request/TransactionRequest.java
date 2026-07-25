@@ -1,8 +1,9 @@
 package com.bank.cbs.dto.request;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
-import com.bank.cbs.domain.enums.TransactionChannel;
+// import com.bank.cbs.domain.enums.TransactionChannel;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -15,7 +16,8 @@ public record TransactionRequest(
     String creditAccountNumber,
     @NotNull @DecimalMin("0.0001") BigDecimal amount,
     @NotBlank @Size(min = 3, max = 3) String currencyCode,
-    TransactionChannel channel,
+    // TransactionChannel channel,
+    UUID channelId,
     String description
 ) {
     

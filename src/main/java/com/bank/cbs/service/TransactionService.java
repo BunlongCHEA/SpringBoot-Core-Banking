@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.bank.cbs.config.CbsProperties;
 import com.bank.cbs.domain.entity.Account;
 import com.bank.cbs.domain.entity.AccountLedger;
+import com.bank.cbs.domain.entity.Channel;
 import com.bank.cbs.domain.entity.Transaction;
 import com.bank.cbs.domain.entity.TransactionReference;
 import com.bank.cbs.domain.enums.AccountStatus;
@@ -26,12 +27,13 @@ import com.bank.cbs.exception.BusinessException;
 import com.bank.cbs.exception.DuplicateTransactionException;
 import com.bank.cbs.repository.jpa.AccountLedgerRepository;
 import com.bank.cbs.repository.jpa.AccountRepository;
+import com.bank.cbs.repository.jpa.ChannelRepository;
 import com.bank.cbs.repository.jpa.CurrencyRepository;
 import com.bank.cbs.repository.jpa.TransactionReferenceRepository;
 import com.bank.cbs.repository.jpa.TransactionRepository;
 import com.bank.cbs.service.redis.BalanceCacheRedisService;
 import com.bank.cbs.service.redis.DistributedLockRedisService;
-import com.bank.cbs.service.redis.IdempotencyRedisService;
+// import com.bank.cbs.service.redis.IdempotencyRedisService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,6 +51,7 @@ public class TransactionService {
     private final BalanceCacheRedisService   balanceCacheService;
     private final CbsProperties              cbsProperties;
     private final TransactionReferenceRepository referenceRepository;
+    private final ChannelRepository          channelRepository;
 
     @Transactional
     public TransactionResponse transfer(TransactionRequest request) {
@@ -200,7 +203,7 @@ public class TransactionService {
             .currency(currency)
             .exchangeRate(BigDecimal.ONE)
             .status(TransactionStatus.COMPLETED)
-            .channel(request.channel())
+            .channel(resolveChannel(request.channelId()))
             .description(request.description())
             .initiatedAt(OffsetDateTime.now())
             .completedAt(OffsetDateTime.now())
@@ -264,6 +267,15 @@ public class TransactionService {
             ref = "TXN" + System.currentTimeMillis() + ThreadLocalRandom.current().nextInt(1000, 9999);
         } while (referenceRepository.existsById(ref));
         return ref;
+    }
+
+    private Channel resolveChannel(UUID channelId) {
+        if (channelId != null) {
+            return channelRepository.findById(channelId)
+                .orElseThrow(() -> new BusinessException("Unknown channel: " + channelId));
+        }
+        return channelRepository.findByCode("BRANCH")
+            .orElseThrow(() -> new IllegalStateException("Default BRANCH channel missing — check channels table seed"));
     }
 
     private static final java.util.concurrent.ThreadLocalRandom ThreadLocalRandom =

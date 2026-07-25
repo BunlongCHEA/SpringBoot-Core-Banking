@@ -1,5 +1,6 @@
 package com.bank.cbs.domain.entity;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 import jakarta.persistence.Column;
@@ -36,6 +37,9 @@ public class Currency {
 
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true; // Indicates if the currency is currently active in the system
+
+    @Column(name = "usd_exchange_rate", nullable = false, precision = 18, scale = 6)
+    private BigDecimal usdExchangeRate;
 
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;

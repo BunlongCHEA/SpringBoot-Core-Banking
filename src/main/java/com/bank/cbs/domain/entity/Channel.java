@@ -18,29 +18,24 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "account_types")
-@Getter
-@Setter
+@Table(name = "channels")
+@Getter 
+@Setter 
 @Builder 
 @NoArgsConstructor 
 @AllArgsConstructor
-public class AccountType {
-    @Id
-    @UuidGenerator
-    @Column(name = "account_type_id")
-    private UUID accountTypeId;
+public class Channel {
+    @Id @UuidGenerator
+    @Column(name = "channel_id")
+    private UUID channelId;
 
-    @Column(nullable = false, unique = true, length = 30)
+    @Column(nullable = false, unique = true, length = 20)
     private String code;
 
     @Column(nullable = false, length = 100)
     private String name;
 
-    @JsonProperty("isCreditNature")
-    @Column(name = "is_credit_nature", nullable = false)
-    private boolean isCreditNature = true;
-
-    @JsonProperty("isActive")
+    @JsonProperty("isActive")   // same Jackson boolean-getter fix as AccountType
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 
