@@ -51,7 +51,8 @@ public class AccountController {
     @Operation(summary = "Get account by account number")
     public ResponseEntity<ApiResponse<AccountResponse>> findByAccountNumber(
             @PathVariable String accountNumber) {
-        return ResponseEntity.ok(ApiResponse.ok(accountService.getByAccountNumberOrThrow(accountNumber)));
+        return ResponseEntity.ok(ApiResponse.ok(AccountResponse.from(
+            accountService.getByAccountNumberOrThrow(accountNumber))));
     }
 
     @GetMapping("/customers/{customerId}")
