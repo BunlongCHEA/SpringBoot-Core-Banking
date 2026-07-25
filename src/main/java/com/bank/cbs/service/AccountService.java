@@ -130,9 +130,16 @@ public class AccountService {
             .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + accountId));
     }
 
-    public Account getByAccountNumberOrThrow(String accountNumber) {
-        return accountRepository.findByAccountNumber(accountNumber)
+    // public Account getByAccountNumberOrThrow(String accountNumber) {
+    //     return accountRepository.findByAccountNumber(accountNumber)
+    //         .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + accountNumber));
+    // }
+
+    @Transactional(readOnly = true)
+    public AccountResponse findByAccountNumber(String accountNumber) {
+        Account account = accountRepository.findByAccountNumber(accountNumber)
             .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + accountNumber));
+        return AccountResponse.from(account);   // mapping now happens while the session is still open
     }
 
     private String generateAccountNumber() {
