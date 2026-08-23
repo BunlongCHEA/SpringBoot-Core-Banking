@@ -1,6 +1,9 @@
 package com.bank.cbs.service;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -15,6 +18,7 @@ import com.bank.cbs.config.CbsProperties;
 import com.bank.cbs.domain.entity.Account;
 import com.bank.cbs.domain.entity.AccountLedger;
 import com.bank.cbs.domain.entity.Channel;
+import com.bank.cbs.domain.entity.Currency;
 import com.bank.cbs.domain.entity.Transaction;
 import com.bank.cbs.domain.entity.TransactionReference;
 import com.bank.cbs.domain.enums.AccountStatus;
@@ -52,6 +56,7 @@ public class TransactionService {
     private final CbsProperties              cbsProperties;
     private final TransactionReferenceRepository referenceRepository;
     private final ChannelRepository          channelRepository;
+    private final TransactionFeeService      transactionFeeService;
 
     @Transactional
     public TransactionResponse transfer(TransactionRequest request) {
@@ -160,6 +165,121 @@ public class TransactionService {
         return transactionRepository
             .findByDebitAccount_AccountIdOrCreditAccount_AccountId(accountId, accountId, pageable)
             .map(TransactionResponse::from);
+    }
+
+    /**
+     * System-initiated deposit — used by internal workflows (e.g. loan disbursement)
+     * rather than a client-facing API call. Builds a real, auditable Transaction row
+     * through the same path as the public deposit endpoint; the idempotency key is
+     * derived deterministically from the caller-supplied reason so retrying the same
+     * logical operation (e.g. re-running a disbursement job) can't double-post.
+     */
+    @Transactional
+    public Transaction internalDeposit(String creditAccountNumber, BigDecimal amount, String currencyCode, String reason) {
+        String idempotencyKey = "internal-" + sha256Hex(reason + "|" + creditAccountNumber + "|" + amount);
+
+        if (idempotencyService.exists(idempotencyKey)) {
+            UUID existingId = idempotencyService.getTransactionId(idempotencyKey)
+                .map(UUID::fromString)
+                .orElseThrow(() -> new IllegalStateException("Idempotency key exists but transaction id missing: " + idempotencyKey));
+            return transactionRepository.findById(existingId)
+                .orElseThrow(() -> new IllegalStateException("Idempotent transaction id not found: " + existingId));
+        }
+
+        Account creditAccount = accountRepository.findByAccountNumber(creditAccountNumber)
+            .orElseThrow(() -> new BusinessException("Unknown credit account: " + creditAccountNumber));
+        Currency currency = currencyRepository.findById(currencyCode)
+            .orElseThrow(() -> new BusinessException("Unknown currency: " + currencyCode));
+        Channel channel = resolveChannel(null); // defaults to BRANCH — internal system transactions aren't customer-channel-initiated
+
+        creditAccount.credit(amount);
+        accountRepository.save(creditAccount);
+
+        Transaction txn = Transaction.builder()
+            .referenceNumber(generateReference())
+            .idempotencyKey(idempotencyKey)
+            .transactionType(TransactionType.DEPOSIT)
+            .creditAccount(creditAccount)
+            .amount(amount)
+            .currency(currency)
+            .channel(channel)
+            .status(TransactionStatus.COMPLETED)
+            .description(reason)
+            .initiatedAt(OffsetDateTime.now())
+            .completedAt(OffsetDateTime.now())
+            .build();
+
+        Transaction saved = transactionRepository.save(txn);
+
+        idempotencyService.save(idempotencyKey, saved.getTransactionId(), saved.getInitiatedAt());
+        referenceRepository.save(TransactionReference.builder()
+            .referenceNumber(saved.getReferenceNumber())
+            .transactionId(saved.getTransactionId())
+            .initiatedAt(saved.getInitiatedAt())
+            .build());
+        // deliberately no transactionFeeService.recordIfApplicable() here —
+        // a loan disbursement isn't a customer-initiated deposit and shouldn't
+        // trigger customer-facing fee logic
+
+        return saved;
+    }
+
+    /**
+     * System-initiated withdrawal — used by internal workflows (e.g. loan repayment
+     * collection). Same real-transaction/idempotency/reference guarantees as the
+     * public withdrawal endpoint. Unlike internalDeposit, this DOES run fee
+     * evaluation, since a loan repayment debiting a customer's account is
+     * economically the same kind of event a channel-based withdrawal fee targets.
+     */
+    @Transactional
+    public Transaction internalWithdrawal(String debitAccountNumber, BigDecimal amount, String currencyCode, String reason) {
+        String idempotencyKey = "internal-" + sha256Hex(reason + "|" + debitAccountNumber + "|" + amount);
+
+        if (idempotencyService.exists(idempotencyKey)) {
+            UUID existingId = idempotencyService.getTransactionId(idempotencyKey)
+                .map(UUID::fromString)
+                .orElseThrow(() -> new IllegalStateException("Idempotency key exists but transaction id missing: " + idempotencyKey));
+            return transactionRepository.findById(existingId)
+                .orElseThrow(() -> new IllegalStateException("Idempotent transaction id not found: " + existingId));
+        }
+
+        Account debitAccount = accountRepository.findByAccountNumber(debitAccountNumber)
+            .orElseThrow(() -> new BusinessException("Unknown debit account: " + debitAccountNumber));
+        Currency currency = currencyRepository.findById(currencyCode)
+            .orElseThrow(() -> new BusinessException("Unknown currency: " + currencyCode));
+        Channel channel = resolveChannel(null);
+
+        if (debitAccount.getAvailableBalance().compareTo(amount) < 0) {
+            throw new BusinessException("Insufficient balance in " + debitAccountNumber + " to collect this payment");
+        }
+        debitAccount.debit(amount);
+        accountRepository.save(debitAccount);
+
+        Transaction txn = Transaction.builder()
+            .referenceNumber(generateReference())
+            .idempotencyKey(idempotencyKey)
+            .transactionType(TransactionType.WITHDRAWAL)
+            .debitAccount(debitAccount)
+            .amount(amount)
+            .currency(currency)
+            .channel(channel)
+            .status(TransactionStatus.COMPLETED)
+            .description(reason)
+            .initiatedAt(OffsetDateTime.now())
+            .completedAt(OffsetDateTime.now())
+            .build();
+
+        Transaction saved = transactionRepository.save(txn);
+
+        idempotencyService.save(idempotencyKey, saved.getTransactionId(), saved.getInitiatedAt());
+        referenceRepository.save(TransactionReference.builder()
+            .referenceNumber(saved.getReferenceNumber())
+            .transactionId(saved.getTransactionId())
+            .initiatedAt(saved.getInitiatedAt())
+            .build());
+        transactionFeeService.recordIfApplicable(saved);
+
+        return saved;
     }
 
     // ── Private helpers ───────────────────────────────────────
@@ -280,4 +400,18 @@ public class TransactionService {
 
     private static final java.util.concurrent.ThreadLocalRandom ThreadLocalRandom =
         java.util.concurrent.ThreadLocalRandom.current();
+
+    private static String sha256Hex(String input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder(hash.length * 2);
+            for (byte b : hash) {
+                hex.append(String.format("%02x", b));
+            }
+            return hex.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 not available", e); // never actually happens — SHA-256 is a mandatory JDK algorithm
+        }
+    }
 }

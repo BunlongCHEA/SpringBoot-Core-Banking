@@ -79,4 +79,19 @@ public class Loan extends BaseEntity {
     @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(nullable = false, columnDefinition = "loan_status")
     private LoanStatus status = LoanStatus.PENDING;
+
+    @Column(name = "approved_at") 
+    private OffsetDateTime approvedAt;
+    
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "approved_by") 
+    private User approvedBy;
+    
+    @Column(name = "rejected_at") 
+    private OffsetDateTime rejectedAt;
+    
+    @Column(name = "rejection_reason", length = 255) 
+    private String rejectionReason;
+    
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "disbursement_account_id") 
+    private Account disbursementAccount;
 }

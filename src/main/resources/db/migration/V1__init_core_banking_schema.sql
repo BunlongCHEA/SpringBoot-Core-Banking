@@ -291,26 +291,52 @@ CREATE INDEX idx_cards_account ON cards(account_id);
 CREATE INDEX idx_cards_status  ON cards(status);
 
 -- ── LOANS ────────────────────────────────────────────────────
-CREATE TABLE loans (
-    loan_id              UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
-    loan_number          VARCHAR(30)   NOT NULL UNIQUE,
-    account_id           UUID          NOT NULL REFERENCES accounts(account_id),
-    principal            NUMERIC(20,4) NOT NULL CHECK (principal > 0),
-    outstanding_balance  NUMERIC(20,4) NOT NULL,
-    interest_rate        NUMERIC(6,4)  NOT NULL,
-    term_months          INTEGER       NOT NULL CHECK (term_months > 0),
-    monthly_installment  NUMERIC(20,4),
-    currency_code        VARCHAR(3)    NOT NULL REFERENCES currencies(currency_code),
-    disbursed_at         TIMESTAMPTZ,
-    maturity_date        DATE,
-    next_payment_date    DATE,
-    status               loan_status   NOT NULL DEFAULT 'PENDING',
-    created_at           TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-    updated_at           TIMESTAMPTZ
+-- Fresh CREATE TYPE can list every value at once — the "add value in a
+-- separate migration" restriction only applies to ALTER TYPE ... ADD VALUE
+-- on an enum that already exists and is already in use.
+CREATE TYPE loan_status AS ENUM (
+    'PENDING', 'APPROVED', 'REJECTED', 'DISBURSED', 'ACTIVE', 'CLOSED', 'DEFAULTED', 'WRITTEN_OFF'
 );
 
-CREATE INDEX idx_loans_account ON loans(account_id);
-CREATE INDEX idx_loans_status  ON loans(status);
+CREATE TABLE loans (
+    loan_id                  UUID           PRIMARY KEY DEFAULT gen_random_uuid(),
+    loan_number              VARCHAR(30)    NOT NULL UNIQUE,
+    account_id               UUID           NOT NULL REFERENCES accounts(account_id),
+    disbursement_account_id  UUID           REFERENCES accounts(account_id),
+    principal                NUMERIC(20,4)  NOT NULL,
+    outstanding_balance      NUMERIC(20,4)  NOT NULL,
+    interest_rate            NUMERIC(6,4)   NOT NULL,
+    term_months              INT            NOT NULL,
+    monthly_installment      NUMERIC(20,4),
+    currency_code            VARCHAR(3)     NOT NULL REFERENCES currencies(currency_code),
+    status                   loan_status    NOT NULL DEFAULT 'PENDING',
+    approved_at              TIMESTAMPTZ,
+    approved_by              UUID           REFERENCES users(user_id),
+    rejected_at              TIMESTAMPTZ,
+    rejection_reason         VARCHAR(255),
+    disbursed_at             TIMESTAMPTZ,
+    maturity_date            DATE,
+    next_payment_date        DATE,
+    created_at               TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
+    updated_at                TIMESTAMPTZ
+);
+
+CREATE INDEX idx_loans_account      ON loans(account_id);
+CREATE INDEX idx_loans_status       ON loans(status);
+CREATE INDEX idx_loans_next_payment ON loans(next_payment_date);
+
+CREATE TABLE loan_payments (
+    loan_payment_id    UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+    loan_id            UUID          NOT NULL REFERENCES loans(loan_id),
+    transaction_id     UUID          NOT NULL,
+    amount             NUMERIC(20,4) NOT NULL,
+    principal_portion  NUMERIC(20,4) NOT NULL,
+    interest_portion   NUMERIC(20,4) NOT NULL,
+    outstanding_after  NUMERIC(20,4) NOT NULL,
+    paid_at            TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_loan_payments_loan ON loan_payments(loan_id, paid_at DESC);
 
 -- ── KYC VERIFICATIONS ────────────────────────────────────────
 CREATE TABLE kyc_verifications (

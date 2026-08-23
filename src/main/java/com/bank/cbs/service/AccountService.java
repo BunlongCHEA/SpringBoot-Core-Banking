@@ -142,7 +142,7 @@ public class AccountService {
         return AccountResponse.from(account);   // mapping now happens while the session is still open
     }
 
-    private String generateAccountNumber() {
+    public String generateAccountNumber() {
         String number;
         do {
             number = String.valueOf(ThreadLocalRandom.current().nextLong(1000000000000000L, 9999999999999999L));
