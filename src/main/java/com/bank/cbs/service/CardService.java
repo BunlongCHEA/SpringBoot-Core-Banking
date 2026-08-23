@@ -44,7 +44,7 @@ public class CardService {
             .cardLastFour(lastFour)
             .cardType(request.cardType())
             .expiryDate(LocalDate.now().plusYears(4))
-            .status(CardStatus.ACTIVE)
+            .status(CardStatus.PENDING)
             .dailyLimit(request.dailyLimit())
             .contactlessEnabled(true)
             .internationalEnabled(false)
@@ -74,12 +74,33 @@ public class CardService {
     }
 
     @Transactional
+    public CardResponse unblock(UUID cardId) {
+        Card card = getOrThrow(cardId);
+        if (card.getStatus() != CardStatus.BLOCKED) {
+            throw new BusinessException("Only a BLOCKED card can be unblocked. Current status: " + card.getStatus());
+        }
+        card.setStatus(CardStatus.ACTIVE);
+        card.setBlockedAt(null);
+        return CardResponse.from(cardRepository.save(card));
+    }
+
+    @Transactional
     public CardResponse activate(UUID cardId) {
         Card card = getOrThrow(cardId);
         if (card.getStatus() != CardStatus.INACTIVE && card.getStatus() != CardStatus.PENDING) {
             throw new BusinessException("Card cannot be activated from status: " + card.getStatus());
         }
         card.setStatus(CardStatus.ACTIVE);
+        return CardResponse.from(cardRepository.save(card));
+    }
+
+    @Transactional
+    public CardResponse deactivate(UUID cardId) {
+        Card card = getOrThrow(cardId);
+        if (card.getStatus() != CardStatus.ACTIVE) {
+            throw new BusinessException("Only an ACTIVE card can be deactivated. Current status: " + card.getStatus());
+        }
+        card.setStatus(CardStatus.INACTIVE);
         return CardResponse.from(cardRepository.save(card));
     }
 

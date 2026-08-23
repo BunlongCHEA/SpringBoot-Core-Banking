@@ -52,9 +52,21 @@ public class CardController {
         return ResponseEntity.ok(ApiResponse.ok("Card blocked", cardService.block(cardId)));
     }
 
+    @PatchMapping("/{cardId}/unblock")
+    @Operation(summary = "Unblock a blocked card")
+    public ResponseEntity<ApiResponse<CardResponse>> unblock(@PathVariable UUID cardId) {
+        return ResponseEntity.ok(ApiResponse.ok("Card unblocked", cardService.unblock(cardId)));
+    }
+
     @PatchMapping("/{cardId}/activate")
     @Operation(summary = "Activate a card")
     public ResponseEntity<ApiResponse<CardResponse>> activate(@PathVariable UUID cardId) {
         return ResponseEntity.ok(ApiResponse.ok("Card activated", cardService.activate(cardId)));
+    }
+
+    @PatchMapping("/{cardId}/deactivate")
+    @Operation(summary = "Deactivate an active card (reversible — distinct from block)")
+    public ResponseEntity<ApiResponse<CardResponse>> deactivate(@PathVariable UUID cardId) {
+        return ResponseEntity.ok(ApiResponse.ok("Card deactivated", cardService.deactivate(cardId)));
     }
 }

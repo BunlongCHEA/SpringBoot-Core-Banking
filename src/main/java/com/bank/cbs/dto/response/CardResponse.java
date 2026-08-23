@@ -17,6 +17,7 @@ public record CardResponse(
     LocalDate  expiryDate,
     CardStatus status,
     BigDecimal dailyLimit,
+    String     currencyCode,
     boolean    contactlessEnabled,
     boolean    internationalEnabled,
     OffsetDateTime issuedAt
@@ -26,8 +27,8 @@ public record CardResponse(
             c.getCardId(), c.getAccount().getAccountId(),
             c.getCardLastFour(), c.getCardType(),
             c.getExpiryDate(), c.getStatus(),
-            c.getDailyLimit(), c.isContactlessEnabled(),
-            c.isInternationalEnabled(), c.getIssuedAt()
+            c.getDailyLimit(), c.getAccount().getCurrency().getCurrencyCode(), 
+            c.isContactlessEnabled(), c.isInternationalEnabled(), c.getIssuedAt()
         );
     }
 }
