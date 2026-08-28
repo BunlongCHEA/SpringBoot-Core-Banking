@@ -228,6 +228,17 @@
 					</excludes>
 				</configuration>
 			</plugin>
+			<!-- ...existing spring-boot-maven-plugin, maven-compiler-plugin... -->
+			<plugin>
+				<groupId>org.flywaydb</groupId>
+				<artifactId>flyway-maven-plugin</artifactId>
+				<configuration>
+					<url>jdbc:postgresql://localhost:5433/core_banking_db</url>
+					<user>postgres</user>
+					<password>12345</password>
+					<cleanDisabled>false</cleanDisabled>
+				</configuration>
+			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>

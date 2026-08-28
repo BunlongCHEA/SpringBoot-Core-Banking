@@ -1,4 +1,3 @@
--- V9__system_settings_and_fx.sql
 CREATE TABLE system_settings (
     setting_key  VARCHAR(100)  PRIMARY KEY,
     value        VARCHAR(255)  NOT NULL,
