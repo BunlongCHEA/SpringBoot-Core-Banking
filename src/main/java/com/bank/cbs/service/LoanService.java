@@ -59,29 +59,30 @@ public class LoanService {
             throw new BusinessException("Disbursement account does not belong to this customer");
         }
 
-        AccountType loanType = accountTypeRepository.findByCode("LOAN")
-            .orElseThrow(() -> new IllegalStateException("LOAN account type missing from account_types"));
+        // AccountType loanType = accountTypeRepository.findByCode("LOAN")
+        //     .orElseThrow(() -> new IllegalStateException("LOAN account type missing from account_types"));
 
-        // The loan's own backing account — tracks outstanding balance only.
-        // Never touched by ordinary deposit/withdraw/transfer; it is asset-natured
-        // (opposite normal-balance direction from a deposit account), so it's
-        // deliberately excluded from the generic credit()/debit() flow.
-        Account loanAccount = Account.builder()
-            .accountNumber(accountService.generateAccountNumber())
-            .customer(customer)
-            .accountType(loanType)
-            .currency(currency)
-            .balance(BigDecimal.ZERO).availableBalance(BigDecimal.ZERO).holdBalance(BigDecimal.ZERO)
-            .status(AccountStatus.ACTIVE)
-            .openedAt(OffsetDateTime.now())
-            .build();
-        accountRepository.save(loanAccount);
+        // // The loan's own backing account — tracks outstanding balance only.
+        // // Never touched by ordinary deposit/withdraw/transfer; it is asset-natured
+        // // (opposite normal-balance direction from a deposit account), so it's
+        // // deliberately excluded from the generic credit()/debit() flow.
+        // Account loanAccount = Account.builder()
+        //     .accountNumber(accountService.generateAccountNumber())
+        //     .customer(customer)
+        //     .accountType(loanType)
+        //     .currency(currency)
+        //     .balance(BigDecimal.ZERO).availableBalance(BigDecimal.ZERO).holdBalance(BigDecimal.ZERO)
+        //     .status(AccountStatus.ACTIVE)
+        //     .openedAt(OffsetDateTime.now())
+        //     .build();
+        // accountRepository.save(loanAccount);
 
         BigDecimal monthly = calculateMonthlyInstallment(request.principal(), request.interestRate(), request.termMonths());
 
         Loan loan = Loan.builder()
             .loanNumber(generateLoanNumber())
-            .account(loanAccount)
+            // .account(loanAccount)
+            .account(null)  // no account yet — only created on approval
             .disbursementAccount(disbursementAccount)
             .principal(request.principal())
             .outstandingBalance(request.principal())
@@ -103,9 +104,26 @@ public class LoanService {
         if (loan.getStatus() != LoanStatus.PENDING) {
             throw new BusinessException("Only a PENDING loan can be approved. Current status: " + loan.getStatus());
         }
+        
+        AccountType loanType = accountTypeRepository.findByCode("LOAN")
+            .orElseThrow(() -> new IllegalStateException("LOAN account type missing from account_types"));
+
+        Account loanAccount = Account.builder()
+            .accountNumber(accountService.generateAccountNumber())
+            .customer(loan.getDisbursementAccount().getCustomer())
+            .accountType(loanType)
+            .currency(loan.getCurrency())
+            .balance(BigDecimal.ZERO).availableBalance(BigDecimal.ZERO).holdBalance(BigDecimal.ZERO)
+            .status(AccountStatus.ACTIVE)
+            .openedAt(OffsetDateTime.now())
+            .build();
+        accountRepository.save(loanAccount);
+
+        loan.setAccount(loanAccount);
         loan.setStatus(LoanStatus.APPROVED);
         loan.setApprovedAt(OffsetDateTime.now());
-        // set loan.approvedBy from a User lookup by approvedByUserId if you thread the acting user through
+
+        log.info("Loan approved and account opened: {} -> {}", loan.getLoanNumber(), loanAccount.getAccountNumber());
         return LoanResponse.from(loanRepository.save(loan));
     }
 
@@ -216,7 +234,7 @@ public class LoanService {
 
     @Transactional(readOnly = true)
     public List<LoanResponse> findByCustomer(UUID customerId) {
-        return loanRepository.findByAccount_Customer_CustomerId(customerId)
+        return loanRepository.findByDisbursementAccount_Customer_CustomerId(customerId)
             .stream().map(LoanResponse::from).toList();
     }
 

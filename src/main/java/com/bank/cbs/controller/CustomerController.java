@@ -7,6 +7,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,11 +35,13 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/customers")
 @RequiredArgsConstructor
+@EnableMethodSecurity
 @Tag(name = "Customers", description = "Customer management APIs, including creation, retrieval, updating, and status management.")
 public class CustomerController {
     private final CustomerService customerService;
 
     @PostMapping
+    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN')") // deliberately narrower than createFromKyc
     @Operation(summary = "Create a new customer")
     public ResponseEntity<ApiResponse<CustomerResponse>> create(
             @Valid @RequestBody CreateCustomerRequest request) {

@@ -4,6 +4,9 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,10 +14,12 @@ import org.springframework.transaction.annotation.Transactional;
 import com.bank.cbs.domain.entity.PasswordHistory;
 import com.bank.cbs.domain.entity.User;
 import com.bank.cbs.domain.enums.PasswordPolicyInterval;
+import com.bank.cbs.domain.enums.UserRole;
 import com.bank.cbs.dto.request.ChangePasswordRequest;
 import com.bank.cbs.dto.request.CreateUserRequest;
 import com.bank.cbs.dto.response.UserResponse;
 import com.bank.cbs.exception.BadRequestException;
+import com.bank.cbs.exception.BusinessException;
 import com.bank.cbs.exception.ConflictException;
 import com.bank.cbs.exception.ResourceNotFoundException;
 import com.bank.cbs.repository.jpa.PasswordHistoryRepository;
@@ -32,7 +37,7 @@ public class UserService {
     private final PasswordPolicyService     passwordPolicyService;
     private final PasswordEncoder           passwordEncoder;
 
-    // ── Creation ────────────────────────────────────────────────
+    // Creation
 
     @Transactional
     public UserResponse create(CreateUserRequest request, UUID createdBy) {
@@ -70,7 +75,7 @@ public class UserService {
         return UserResponse.from(saved);
     }
 
-    // ── Password Management ──────────────────────────────────────
+    // Password Management
 
     /**
      * Changes a user's password.
@@ -123,7 +128,7 @@ public class UserService {
         return UserResponse.from(userRepository.save(user));
     }
 
-    // ── Queries ──────────────────────────────────────────────────
+    // Queries
 
     @Transactional(readOnly = true)
     public UserResponse findById(UUID userId) {
@@ -142,7 +147,48 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
     }
 
-    // ── Soft Delete ──────────────────────────────────────────────
+    @Transactional(readOnly = true)
+    public Page<UserResponse> search(UserRole role, Boolean isActive, Pageable pageable) {
+        Specification<User> spec = (root, query, cb) -> cb.conjunction();   // guaranteed non-null "match everything" base
+
+        if (role != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("role"), role));
+        }
+        if (isActive != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("isActive"), isActive));
+        }
+
+        return userRepository.findAll(spec, pageable).map(UserResponse::from);
+    }
+
+    // Reactivate and Reset Account
+
+    @Transactional
+    public void reactivate(UUID userId) {
+        User user = getOrThrow(userId);
+        if (user.isActive()) {
+            throw new BusinessException("User is already active");
+        }
+        user.setActive(true);
+        userRepository.save(user);
+        log.info("User reactivated: {}", user.getUsername());
+    }
+
+    @Transactional
+    public String resetPassword(UUID userId) {
+        User user = getOrThrow(userId);
+        String tempPassword = passwordPolicyService.generateTempPassword(user.getUsername());
+        String hash = passwordEncoder.encode(tempPassword);
+        user.setPasswordHash(hash);
+        user.setMustChangePassword(true);
+        user.setPasswordExpiresAt(passwordPolicyService.computeExpiresAt(user.getPasswordPolicy()));
+        userRepository.save(user);
+        recordHistory(userId, hash);
+        log.warn("Password administratively reset for user: {}", user.getUsername());
+        return tempPassword;   // shown once to the admin — never persisted in plaintext, never logged
+    }
+
+    // Soft Delete
 
     @Transactional
     public void deactivate(UUID userId) {

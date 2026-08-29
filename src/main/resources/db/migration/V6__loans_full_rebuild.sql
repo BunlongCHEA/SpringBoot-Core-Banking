@@ -1,6 +1,6 @@
 DROP TABLE IF EXISTS loan_payments CASCADE;
 DROP TABLE IF EXISTS loans CASCADE;
-DROP TYPE IF EXISTS loan_status;
+-- DROP TYPE IF EXISTS loan_status;
 
 CREATE TABLE loans (
     loan_id                  UUID           PRIMARY KEY DEFAULT gen_random_uuid(),

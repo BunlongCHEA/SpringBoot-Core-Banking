@@ -44,7 +44,7 @@ public class Loan extends BaseEntity {
     private String loanNumber;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "account_id", nullable = false)
+    @JoinColumn(name = "account_id")
     private Account account;
 
     @Column(nullable = false, precision = 20, scale = 4)

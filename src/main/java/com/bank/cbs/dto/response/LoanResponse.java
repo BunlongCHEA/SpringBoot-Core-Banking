@@ -15,13 +15,17 @@ public record LoanResponse(
     LoanStatus status, boolean overdue,
     OffsetDateTime disbursedAt, LocalDate maturityDate, LocalDate nextPaymentDate,
     String rejectionReason
-)  {
+) {
     public static LoanResponse from(Loan l) {
         boolean overdue = (l.getStatus() == LoanStatus.DISBURSED || l.getStatus() == LoanStatus.ACTIVE)
             && l.getNextPaymentDate() != null
             && l.getNextPaymentDate().isBefore(LocalDate.now());
+
+        UUID customerId = l.getDisbursementAccount().getCustomer().getCustomerId();   // always non-null from apply() onward
+        UUID accountId = l.getAccount() != null ? l.getAccount().getAccountId() : null;   // null until approved
+
         return new LoanResponse(
-            l.getLoanId(), l.getLoanNumber(), l.getAccount().getCustomer().getCustomerId(), l.getAccount().getAccountId(),
+            l.getLoanId(), l.getLoanNumber(), customerId, accountId,
             l.getPrincipal(), l.getOutstandingBalance(), l.getInterestRate(),
             l.getTermMonths(), l.getMonthlyInstallment(), l.getCurrency().getCurrencyCode(),
             l.getStatus(), overdue,

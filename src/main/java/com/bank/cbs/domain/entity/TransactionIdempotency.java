@@ -20,7 +20,7 @@ import lombok.Setter;
 @Builder @NoArgsConstructor @AllArgsConstructor
 public class TransactionIdempotency {
     @Id
-    @Column(name = "idempotency_key", length = 64)
+    @Column(name = "idempotency_key", length = 100)
     private String idempotencyKey;
 
     @Column(name = "transaction_id", nullable = false)

@@ -201,6 +201,7 @@ public class TransactionService {
             .transactionType(TransactionType.DEPOSIT)
             .creditAccount(creditAccount)
             .amount(amount)
+            .exchangeRate(BigDecimal.ONE)
             .currency(currency)
             .channel(channel)
             .status(TransactionStatus.COMPLETED)
@@ -209,7 +210,10 @@ public class TransactionService {
             .completedAt(OffsetDateTime.now())
             .build();
 
-        Transaction saved = transactionRepository.save(txn);
+        Transaction saved = transactionRepository.saveAndFlush(txn);
+
+        postLedgerEntries(saved, null, creditAccount);   // ← reuse the same helper the public deposit() uses
+        balanceCacheService.evict(creditAccount.getAccountId().toString());
 
         idempotencyService.save(idempotencyKey, saved.getTransactionId(), saved.getInitiatedAt());
         referenceRepository.save(TransactionReference.builder()
@@ -261,6 +265,7 @@ public class TransactionService {
             .transactionType(TransactionType.WITHDRAWAL)
             .debitAccount(debitAccount)
             .amount(amount)
+            .exchangeRate(BigDecimal.ONE)
             .currency(currency)
             .channel(channel)
             .status(TransactionStatus.COMPLETED)
@@ -269,7 +274,10 @@ public class TransactionService {
             .completedAt(OffsetDateTime.now())
             .build();
 
-        Transaction saved = transactionRepository.save(txn);
+        Transaction saved = transactionRepository.saveAndFlush(txn);
+
+        postLedgerEntries(saved, debitAccount, null);   // ← reuse the same helper the public withdrawal() uses
+        balanceCacheService.evict(debitAccount.getAccountId().toString());
 
         idempotencyService.save(idempotencyKey, saved.getTransactionId(), saved.getInitiatedAt());
         referenceRepository.save(TransactionReference.builder()

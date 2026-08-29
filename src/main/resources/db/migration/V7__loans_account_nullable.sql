@@ -1,0 +1,1 @@
+ALTER TABLE loans ALTER COLUMN account_id DROP NOT NULL;

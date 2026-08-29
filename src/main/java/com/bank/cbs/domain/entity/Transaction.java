@@ -44,7 +44,7 @@ public class Transaction extends BaseEntity {
     @Column(name = "reference_number", nullable = false, unique = true, length = 40)
     private String referenceNumber;
 
-    @Column(name = "idempotency_key", nullable = false, unique = true, length = 64)
+    @Column(name = "idempotency_key", nullable = false, unique = true, length = 100)
     private String idempotencyKey;
 
     @ManyToOne(fetch = FetchType.LAZY)
