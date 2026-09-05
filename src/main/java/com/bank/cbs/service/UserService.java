@@ -41,6 +41,11 @@ public class UserService {
 
     @Transactional
     public UserResponse create(CreateUserRequest request, UUID createdBy) {
+        if (request.role() == UserRole.SUPER_ADMIN
+            && userRepository.existsByRoleAndIsDeletedFalse(UserRole.SUPER_ADMIN)) {
+            throw new BusinessException(
+                "Only one SUPER_ADMIN account is permitted. Contact the existing super admin instead.");
+        }
         if (userRepository.existsByUsername(request.username())) {
             throw new ConflictException("Username already taken: " + request.username());
         }
@@ -136,9 +141,9 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public User getOrThrow(UUID userId) {
-        return userRepository.findByUserIdAndIsDeletedFalse(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+    private User getOrThrow(UUID userId) {
+        return userRepository.findById(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
     }
 
     @Transactional(readOnly = true)
@@ -149,7 +154,8 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public Page<UserResponse> search(UserRole role, Boolean isActive, Pageable pageable) {
-        Specification<User> spec = (root, query, cb) -> cb.conjunction();   // guaranteed non-null "match everything" base
+        // Specification<User> spec = (root, query, cb) -> cb.conjunction();   // guaranteed non-null "match everything" base
+        Specification<User> spec = (root, query, cb) -> cb.equal(root.get("isDeleted"), false);
 
         if (role != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("role"), role));
@@ -166,12 +172,28 @@ public class UserService {
     @Transactional
     public void reactivate(UUID userId) {
         User user = getOrThrow(userId);
+        if (user.isDeleted()) {
+            throw new BusinessException("This user has been removed from the portal and cannot be reactivated here.");
+        }
+
         if (user.isActive()) {
             throw new BusinessException("User is already active");
         }
         user.setActive(true);
         userRepository.save(user);
         log.info("User reactivated: {}", user.getUsername());
+    }
+    
+    @Transactional
+    public void deactivate(UUID userId) {
+        User user = getOrThrow(userId);
+        if (user.getRole() == UserRole.SUPER_ADMIN) {
+            throw new BusinessException("The SUPER_ADMIN account cannot be deactivated.");
+        }
+        
+        user.setActive(false);
+        userRepository.save(user);
+        log.info("User deactivated: {}", user.getUsername());
     }
 
     @Transactional
@@ -188,15 +210,16 @@ public class UserService {
         return tempPassword;   // shown once to the admin — never persisted in plaintext, never logged
     }
 
-    // Soft Delete
-
     @Transactional
-    public void deactivate(UUID userId) {
+    public void remove(UUID userId) {
         User user = getOrThrow(userId);
-        user.setDeleted(true);
-        user.setActive(false);
+        if (user.getRole() == UserRole.SUPER_ADMIN) {
+            throw new BusinessException("The SUPER_ADMIN account cannot be removed.");
+        }
+        user.setDeleted(true);            // hidden from portal UI from now on
+        user.setActive(false);            // removal implies unusable too
         userRepository.save(user);
-        log.info("User deactivated: {}", user.getUsername());
+        log.info("User removed from portal (row retained in Postgres): {}", user.getUsername());
     }
 
     // ── Helpers ──────────────────────────────────────────────────

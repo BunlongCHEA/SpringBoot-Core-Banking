@@ -84,15 +84,15 @@ public class UserController {
         return ResponseEntity.ok(userService.findById(userId));
     }
 
-    @DeleteMapping("/{userId}")
-    @PreAuthorize("hasAuthority('SUPER_ADMIN')")
-    public ResponseEntity<Void> deactivate(@PathVariable UUID userId) {
+    @PatchMapping("/{userId}/deactivate")
+    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deactivate(@PathVariable UUID userId) {
         userService.deactivate(userId);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.ok("User deactivated", null));
     }
 
     @PatchMapping("/{userId}/reactivate")
-    @PreAuthorize("hasAuthority('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('SUPER_ADMIN','ADMIN')")
     public ResponseEntity<ApiResponse<Void>> reactivate(@PathVariable UUID userId) {
         userService.reactivate(userId);
         return ResponseEntity.ok(ApiResponse.ok("User reactivated", null));
@@ -104,6 +104,13 @@ public class UserController {
         String tempPassword = userService.resetPassword(userId);
         return ResponseEntity.ok(ApiResponse.ok("Password reset — share this securely, one-time only",
             Map.of("tempPassword", tempPassword)));
+    }
+
+    @DeleteMapping("/{userId}")
+    @PreAuthorize("hasAuthority('SUPER_ADMIN')")   // the heavier action — narrower than deactivate
+    public ResponseEntity<ApiResponse<Void>> remove(@PathVariable UUID userId) {
+        userService.remove(userId);
+        return ResponseEntity.ok(ApiResponse.ok("User removed from portal", null));
     }
 
     @GetMapping("/generate-password")
