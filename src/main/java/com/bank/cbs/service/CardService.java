@@ -3,6 +3,7 @@ package com.bank.cbs.service;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -12,12 +13,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.bank.cbs.domain.entity.Account;
 import com.bank.cbs.domain.entity.Card;
+import com.bank.cbs.domain.enums.AuditAction;
 import com.bank.cbs.domain.enums.CardStatus;
 import com.bank.cbs.dto.request.CreateCardRequest;
 import com.bank.cbs.dto.response.CardResponse;
 import com.bank.cbs.exception.BusinessException;
 import com.bank.cbs.exception.ResourceNotFoundException;
 import com.bank.cbs.repository.jpa.CardRepository;
+import com.bank.cbs.security.SecurityAuditContext;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +32,9 @@ public class CardService {
     private final CardRepository cardRepository;
     private final AccountService accountService;
     private final PasswordEncoder passwordEncoder;
+
+    private final AuditService              auditService;
+    private final SecurityAuditContext      securityContext;
 
     @Transactional
     public CardResponse issue(UUID accountId, CreateCardRequest request) {
@@ -68,8 +74,13 @@ public class CardService {
         if (card.getStatus() == CardStatus.BLOCKED) {
             throw new BusinessException("Card is already blocked");
         }
+        CardStatus oldStatus = card.getStatus();
         card.setStatus(CardStatus.BLOCKED);
         card.setBlockedAt(OffsetDateTime.now());
+
+        auditService.log("Card", cardId, AuditAction.UPDATE,
+        securityContext.currentUserId(), securityContext.currentUserRole(), securityContext.currentIp(),
+        Map.of("status", oldStatus), Map.of("status", "BLOCKED"), null);
         return CardResponse.from(cardRepository.save(card));
     }
 
@@ -81,6 +92,10 @@ public class CardService {
         }
         card.setStatus(CardStatus.ACTIVE);
         card.setBlockedAt(null);
+
+        auditService.log("Card", cardId, AuditAction.UPDATE,
+        securityContext.currentUserId(), securityContext.currentUserRole(), securityContext.currentIp(),
+        Map.of("status", "BLOCKED"), Map.of("status", "ACTIVE"), null);
         return CardResponse.from(cardRepository.save(card));
     }
 

@@ -6,12 +6,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.bank.cbs.config.CbsProperties;
 import com.bank.cbs.domain.entity.User;
+import com.bank.cbs.domain.enums.AuditAction;
 import com.bank.cbs.dto.request.LoginRequest;
 import com.bank.cbs.dto.response.LoginResponse;
 import com.bank.cbs.exception.BadRequestException;
 import com.bank.cbs.exception.BusinessException;
 import com.bank.cbs.repository.jpa.UserRepository;
 import com.bank.cbs.security.JwtUtil;
+import com.bank.cbs.security.SecurityAuditContext;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +27,9 @@ public class AuthService {
     private final PasswordPolicyService passwordPolicyService;
     private final JwtUtil               jwtUtil;
     private final CbsProperties         cbsProperties;
+
+    private final AuditService              auditService;
+    private final SecurityAuditContext      securityContext;
  
     /**
      * Authenticates a user and returns a signed JWT.
@@ -72,9 +77,11 @@ public class AuthService {
         String token    = jwtUtil.generate(user.getUserId().toString(), user.getRole().name());
         long   expiresIn = cbsProperties.security().jwt().expirationSeconds();
  
+        auditService.log("User", user.getUserId(), AuditAction.LOGIN,
+        user.getUserId(), user.getRole().name(), securityContext.currentIp(),
+        null, null, null);
         log.info("User '{}' logged in (role={}, mustChangePassword={})",
                 user.getUsername(), user.getRole(), mustChange);
- 
         return new LoginResponse(
                 token, "Bearer", expiresIn,
                 user.getUserId(), user.getUsername(), user.getRole().name(),

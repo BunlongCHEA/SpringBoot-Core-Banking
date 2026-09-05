@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -18,6 +19,7 @@ import com.bank.cbs.domain.entity.Address;
 import com.bank.cbs.domain.entity.Branch;
 import com.bank.cbs.domain.entity.Customer;
 import com.bank.cbs.domain.entity.KycVerification;
+import com.bank.cbs.domain.enums.AuditAction;
 import com.bank.cbs.domain.enums.CustomerStatus;
 import com.bank.cbs.domain.enums.CustomerType;
 import com.bank.cbs.domain.enums.KycDocumentType;
@@ -35,6 +37,7 @@ import com.bank.cbs.repository.jpa.AddressRepository;
 import com.bank.cbs.repository.jpa.BranchRepository;
 import com.bank.cbs.repository.jpa.CustomerRepository;
 import com.bank.cbs.repository.jpa.KycVerificationRepository;
+import com.bank.cbs.security.SecurityAuditContext;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +53,9 @@ public class CustomerService {
     private final KycClientService goKycClientService;
     private final BranchRepository branchRepository;
     private final KycVerificationRepository kycVerificationRepository;
+
+    private final AuditService              auditService;
+    private final SecurityAuditContext      securityContext;
 
     @Transactional
     public CustomerResponse create(CreateCustomerRequest request) {
@@ -75,6 +81,11 @@ public class CustomerService {
             .build();
 
         Customer saved = customerRepository.save(customer);
+
+        auditService.log("Customer", saved.getCustomerId(), AuditAction.CREATE,
+        securityContext.currentUserId(), securityContext.currentUserRole(), securityContext.currentIp(),
+        null, Map.of("fullName", saved.getFullName(), "customerType", saved.getCustomerType()),
+        Map.of("verificationMethod", "manual", "note", "bypassed KYC verification"));
         log.info("Customer created: {}", saved.getCustomerCode());
         return CustomerResponse.from(saved);
     }
@@ -106,8 +117,12 @@ public class CustomerService {
     @Transactional
     public void updateStatus(UUID customerId, CustomerStatus status) {
         Customer customer = getOrThrow(customerId);
+        CustomerStatus oldStatus = customer.getStatus();
         customer.setStatus(status);
         customerRepository.save(customer);
+
+        auditService.log("Customer", customerId, AuditAction.UPDATE, securityContext.currentUserId(), securityContext.currentUserRole(), securityContext.currentIp(), 
+        Map.of("status", oldStatus), Map.of("status", status), null);
         log.info("Customer {} status updated to {}", customerId, status);
     }
 

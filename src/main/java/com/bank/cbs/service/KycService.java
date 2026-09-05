@@ -2,6 +2,7 @@ package com.bank.cbs.service;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -9,12 +10,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.bank.cbs.domain.entity.Customer;
 import com.bank.cbs.domain.entity.KycVerification;
+import com.bank.cbs.domain.enums.AuditAction;
 import com.bank.cbs.domain.enums.KycDocumentType;
 import com.bank.cbs.domain.enums.KycStatus;
 import com.bank.cbs.dto.request.KycRequest;
 import com.bank.cbs.dto.response.KycResponse;
 import com.bank.cbs.exception.ResourceNotFoundException;
 import com.bank.cbs.repository.jpa.KycVerificationRepository;
+import com.bank.cbs.security.SecurityAuditContext;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +28,9 @@ import lombok.extern.slf4j.Slf4j;
 public class KycService {
     private final KycVerificationRepository kycRepository;
     private final CustomerService           customerService;
+
+    private final AuditService              auditService;
+    private final SecurityAuditContext      securityContext;
 
     @Transactional
     public KycResponse submit(UUID customerId, KycRequest request) {
@@ -47,6 +53,10 @@ public class KycService {
         kyc.setStatus(KycStatus.VERIFIED);
         kyc.setVerifiedBy(verifiedBy);
         kyc.setVerifiedAt(OffsetDateTime.now());
+
+        auditService.log("KycVerification", kycId, AuditAction.UPDATE,
+        securityContext.currentUserId(), securityContext.currentUserRole(), securityContext.currentIp(),
+        Map.of("status", "PENDING"), Map.of("status", "VERIFIED"), null);
         log.info("KYC verified: {} by: {}", kycId, verifiedBy);
         return KycResponse.from(kycRepository.save(kyc));
     }
@@ -56,6 +66,10 @@ public class KycService {
         KycVerification kyc = getOrThrow(kycId);
         kyc.setStatus(KycStatus.REJECTED);
         kyc.setRejectionReason(reason);
+
+        auditService.log("KycVerification", kycId, AuditAction.UPDATE,
+        securityContext.currentUserId(), securityContext.currentUserRole(), securityContext.currentIp(),
+        Map.of("status", "PENDING"), Map.of("status", "REJECTED"), Map.of("reason", reason));
         log.info("KYC rejected: {} reason: {}", kycId, reason);
         return KycResponse.from(kycRepository.save(kyc));
     }

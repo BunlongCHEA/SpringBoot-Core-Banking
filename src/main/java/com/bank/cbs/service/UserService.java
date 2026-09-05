@@ -2,6 +2,7 @@ package com.bank.cbs.service;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.bank.cbs.domain.entity.PasswordHistory;
 import com.bank.cbs.domain.entity.User;
+import com.bank.cbs.domain.enums.AuditAction;
 import com.bank.cbs.domain.enums.PasswordPolicyInterval;
 import com.bank.cbs.domain.enums.UserRole;
 import com.bank.cbs.dto.request.ChangePasswordRequest;
@@ -24,6 +26,7 @@ import com.bank.cbs.exception.ConflictException;
 import com.bank.cbs.exception.ResourceNotFoundException;
 import com.bank.cbs.repository.jpa.PasswordHistoryRepository;
 import com.bank.cbs.repository.jpa.UserRepository;
+import com.bank.cbs.security.SecurityAuditContext;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +39,8 @@ public class UserService {
     private final PasswordHistoryRepository passwordHistoryRepository;
     private final PasswordPolicyService     passwordPolicyService;
     private final PasswordEncoder           passwordEncoder;
+    private final AuditService              auditService;
+    private final SecurityAuditContext      securityContext;
 
     // Creation
 
@@ -76,6 +81,10 @@ public class UserService {
 
         User saved = userRepository.save(user);
         recordHistory(saved.getUserId(), hash);
+
+        auditService.log("User", user.getUserId(), AuditAction.CREATE,
+        securityContext.currentUserId(), securityContext.currentUserRole(), securityContext.currentIp(),
+        null, Map.of("username", user.getUsername(), "role", user.getRole()), null);
         log.info("User created: {} role={} by={}", saved.getUsername(), saved.getRole(), createdBy);
         return UserResponse.from(saved);
     }
@@ -128,8 +137,13 @@ public class UserService {
     @Transactional
     public UserResponse updatePasswordPolicy(UUID userId, PasswordPolicyInterval policy) {
         User user = getOrThrow(userId);
+        PasswordPolicyInterval oldPolicy = user.getPasswordPolicy();
         user.setPasswordPolicy(policy);
         user.setPasswordExpiresAt(passwordPolicyService.computeExpiresAt(policy));
+
+        auditService.log("User", userId, AuditAction.UPDATE,
+        securityContext.currentUserId(), securityContext.currentUserRole(), securityContext.currentIp(),
+        Map.of("passwordPolicy", oldPolicy), Map.of("passwordPolicy", policy), null);
         return UserResponse.from(userRepository.save(user));
     }
 
@@ -181,6 +195,10 @@ public class UserService {
         }
         user.setActive(true);
         userRepository.save(user);
+
+        auditService.log("User", userId, AuditAction.UPDATE,
+        securityContext.currentUserId(), securityContext.currentUserRole(), securityContext.currentIp(),
+        Map.of("isActive", false), Map.of("isActive", true), null);
         log.info("User reactivated: {}", user.getUsername());
     }
     
@@ -193,6 +211,9 @@ public class UserService {
         
         user.setActive(false);
         userRepository.save(user);
+
+        auditService.log("User", userId, AuditAction.UPDATE, securityContext.currentUserId(), securityContext.currentUserRole(), securityContext.currentIp(), 
+        Map.of("isActive", true), Map.of("isActive", false), Map.of("reason", "deactivated"));
         log.info("User deactivated: {}", user.getUsername());
     }
 
@@ -206,6 +227,11 @@ public class UserService {
         user.setPasswordExpiresAt(passwordPolicyService.computeExpiresAt(user.getPasswordPolicy()));
         userRepository.save(user);
         recordHistory(userId, hash);
+
+        auditService.log("User", userId, AuditAction.UPDATE,
+        securityContext.currentUserId(), securityContext.currentUserRole(), securityContext.currentIp(),
+        null, null, Map.of("action", "password reset by admin"));
+        // note: tempPassword itself NEVER goes in oldValue/newValue/metadata — audit records are not secret-safe storage
         log.warn("Password administratively reset for user: {}", user.getUsername());
         return tempPassword;   // shown once to the admin — never persisted in plaintext, never logged
     }
@@ -216,9 +242,16 @@ public class UserService {
         if (user.getRole() == UserRole.SUPER_ADMIN) {
             throw new BusinessException("The SUPER_ADMIN account cannot be removed.");
         }
+        if (user.isDeleted()) {
+            throw new BusinessException("User has already been removed from the portal.");
+        }
         user.setDeleted(true);            // hidden from portal UI from now on
         user.setActive(false);            // removal implies unusable too
         userRepository.save(user);
+
+        auditService.log("User", userId, AuditAction.DELETE,
+        securityContext.currentUserId(), securityContext.currentUserRole(), securityContext.currentIp(),
+        Map.of("isDeleted", false), Map.of("isDeleted", true), null);
         log.info("User removed from portal (row retained in Postgres): {}", user.getUsername());
     }
 

@@ -3,6 +3,7 @@ package com.bank.cbs.service;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -13,6 +14,8 @@ import com.bank.cbs.domain.entity.Account;
 import com.bank.cbs.domain.entity.AccountType;
 import com.bank.cbs.domain.entity.Customer;
 import com.bank.cbs.domain.enums.AccountStatus;
+import com.bank.cbs.domain.enums.AuditAction;
+import com.bank.cbs.domain.enums.CustomerStatus;
 // import com.bank.cbs.domain.enums.AccountType;
 import com.bank.cbs.dto.request.CreateAccountRequest;
 import com.bank.cbs.dto.response.AccountResponse;
@@ -21,6 +24,7 @@ import com.bank.cbs.exception.ResourceNotFoundException;
 import com.bank.cbs.repository.jpa.AccountRepository;
 import com.bank.cbs.repository.jpa.AccountTypeRepository;
 import com.bank.cbs.repository.jpa.CurrencyRepository;
+import com.bank.cbs.security.SecurityAuditContext;
 import com.bank.cbs.service.redis.BalanceCacheRedisService;
 
 import lombok.RequiredArgsConstructor;
@@ -35,6 +39,9 @@ public class AccountService {
     private final CustomerService         customerService;
     private final BalanceCacheRedisService balanceCacheRedisService;
     private final AccountTypeRepository   accountTypeRepository;
+
+    private final AuditService              auditService;
+    private final SecurityAuditContext      securityContext;
 
     @Transactional
     public AccountResponse create(UUID customerId, CreateAccountRequest request) {
@@ -100,6 +107,10 @@ public class AccountService {
         account.setStatus(AccountStatus.FROZEN);
         accountRepository.save(account);
         balanceCacheRedisService.evict(accountId.toString());
+
+        auditService.log("Account", accountId, AuditAction.UPDATE,
+        securityContext.currentUserId(), securityContext.currentUserRole(), securityContext.currentIp(),
+        Map.of("status", "ACTIVE"), Map.of("status", "FROZEN"), null);
     }
 
     @Transactional
@@ -111,6 +122,10 @@ public class AccountService {
         account.setStatus(AccountStatus.ACTIVE);
         accountRepository.save(account);
         balanceCacheRedisService.evict(accountId.toString());
+
+        auditService.log("Account", accountId, AuditAction.UPDATE,
+        securityContext.currentUserId(), securityContext.currentUserRole(), securityContext.currentIp(),
+        Map.of("status", "FROZEN"), Map.of("status", "ACTIVE"), null);
     }
 
     @Transactional
@@ -119,10 +134,15 @@ public class AccountService {
         if (account.getBalance().compareTo(BigDecimal.ZERO) != 0) {
             throw new BusinessException("Cannot close account with non-zero balance");
         }
+        AccountStatus oldStatus = account.getStatus();
         account.setStatus(AccountStatus.CLOSED);
         account.setClosedAt(OffsetDateTime.now());
         accountRepository.save(account);
         balanceCacheRedisService.evict(accountId.toString());
+
+        auditService.log("Account", accountId, AuditAction.UPDATE,
+        securityContext.currentUserId(), securityContext.currentUserRole(), securityContext.currentIp(),
+        Map.of("status", oldStatus), Map.of("status", "CLOSED"), null);
     }
 
     public Account getOrThrow(UUID accountId) {

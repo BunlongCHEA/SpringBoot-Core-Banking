@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -19,6 +20,7 @@ import com.bank.cbs.domain.entity.Loan;
 import com.bank.cbs.domain.entity.LoanPayment;
 import com.bank.cbs.domain.entity.Transaction;
 import com.bank.cbs.domain.enums.AccountStatus;
+import com.bank.cbs.domain.enums.AuditAction;
 import com.bank.cbs.domain.enums.LoanStatus;
 import com.bank.cbs.dto.request.CreateLoanRequest;
 import com.bank.cbs.dto.request.RecordLoanPaymentRequest;
@@ -31,6 +33,7 @@ import com.bank.cbs.repository.jpa.AccountTypeRepository;
 import com.bank.cbs.repository.jpa.CurrencyRepository;
 import com.bank.cbs.repository.jpa.LoanPaymentRepository;
 import com.bank.cbs.repository.jpa.LoanRepository;
+import com.bank.cbs.security.SecurityAuditContext;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +50,9 @@ public class LoanService {
     private final CustomerService customerService;
     private final TransactionService transactionService;
     private final AccountService accountService;
+
+    private final AuditService              auditService;
+    private final SecurityAuditContext      securityContext;
 
     @Transactional
     public LoanResponse apply(UUID customerId, CreateLoanRequest request) {
@@ -123,6 +129,10 @@ public class LoanService {
         loan.setStatus(LoanStatus.APPROVED);
         loan.setApprovedAt(OffsetDateTime.now());
 
+        auditService.log("Loan", loanId, AuditAction.UPDATE,
+        securityContext.currentUserId(), securityContext.currentUserRole(), securityContext.currentIp(),
+        Map.of("status", "PENDING"), Map.of("status", "APPROVED"),
+        Map.of("principal", loan.getPrincipal(), "currency", loan.getCurrency().getCurrencyCode()));
         log.info("Loan approved and account opened: {} -> {}", loan.getLoanNumber(), loanAccount.getAccountNumber());
         return LoanResponse.from(loanRepository.save(loan));
     }
@@ -136,6 +146,10 @@ public class LoanService {
         loan.setStatus(LoanStatus.REJECTED);
         loan.setRejectedAt(OffsetDateTime.now());
         loan.setRejectionReason(reason);
+
+        auditService.log("Loan", loanId, AuditAction.UPDATE,
+        securityContext.currentUserId(), securityContext.currentUserRole(), securityContext.currentIp(),
+        Map.of("status", "PENDING"), Map.of("status", "REJECTED"), Map.of("reason", reason));
         return LoanResponse.from(loanRepository.save(loan));
     }
 
@@ -161,6 +175,10 @@ public class LoanService {
         loan.setMaturityDate(LocalDate.now().plusMonths(loan.getTermMonths()));
         loan.setNextPaymentDate(LocalDate.now().plusMonths(1));
 
+        auditService.log("Loan", loanId, AuditAction.UPDATE,
+        securityContext.currentUserId(), securityContext.currentUserRole(), securityContext.currentIp(),
+        Map.of("status", "APPROVED"), Map.of("status", "DISBURSED"),
+        Map.of("principal", loan.getPrincipal(), "disbursementAccount", loan.getDisbursementAccount().getAccountNumber()));
         log.info("Loan disbursed: {}", loan.getLoanNumber());
         return LoanResponse.from(loanRepository.save(loan));
     }
