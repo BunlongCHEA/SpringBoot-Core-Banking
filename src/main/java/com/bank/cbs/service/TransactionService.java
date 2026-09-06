@@ -175,9 +175,7 @@ public class TransactionService {
      * logical operation (e.g. re-running a disbursement job) can't double-post.
      */
     @Transactional
-    public Transaction internalDeposit(String creditAccountNumber, BigDecimal amount, String currencyCode, String reason) {
-        String idempotencyKey = "internal-" + sha256Hex(reason + "|" + creditAccountNumber + "|" + amount);
-
+    public Transaction internalDeposit(String idempotencyKey, String creditAccountNumber, BigDecimal amount, String currencyCode, String reason) {
         if (idempotencyService.exists(idempotencyKey)) {
             UUID existingId = idempotencyService.getTransactionId(idempotencyKey)
                 .map(UUID::fromString)
@@ -228,6 +226,19 @@ public class TransactionService {
         return saved;
     }
 
+    // Deterministic-key convenience overload — ONLY correct for actions that
+    // are genuinely one-time-per-entity. Loan disbursement qualifies: a given
+    // loan number can only ever disburse once (guarded by LoanService.disburse()'s
+    // own status check, APPROVED -> DISBURSED), so deriving the key from
+    // loan number + account + amount is a real safeguard against an accidental
+    // double-disbursement, not a source of false-positive collisions the way
+    // recurring same-amount loan repayments were.
+    @Transactional
+    public Transaction internalDeposit(String creditAccountNumber, BigDecimal amount, String currencyCode, String reason) {
+        String idempotencyKey = "internal-" + sha256Hex(reason + "|" + creditAccountNumber + "|" + amount);
+        return internalDeposit(idempotencyKey, creditAccountNumber, amount, currencyCode, reason);
+    }
+
     /**
      * System-initiated withdrawal — used by internal workflows (e.g. loan repayment
      * collection). Same real-transaction/idempotency/reference guarantees as the
@@ -236,9 +247,7 @@ public class TransactionService {
      * economically the same kind of event a channel-based withdrawal fee targets.
      */
     @Transactional
-    public Transaction internalWithdrawal(String debitAccountNumber, BigDecimal amount, String currencyCode, String reason) {
-        String idempotencyKey = "internal-" + sha256Hex(reason + "|" + debitAccountNumber + "|" + amount);
-
+    public Transaction internalWithdrawal(String idempotencyKey, String debitAccountNumber, BigDecimal amount, String currencyCode, String reason) {
         if (idempotencyService.exists(idempotencyKey)) {
             UUID existingId = idempotencyService.getTransactionId(idempotencyKey)
                 .map(UUID::fromString)
@@ -288,6 +297,15 @@ public class TransactionService {
         transactionFeeService.recordIfApplicable(saved);
 
         return saved;
+    }
+
+    // Deterministic-key convenience overload — ONLY correct for actions that are
+    // truly one-time-per-entity, like loan disbursement (a loan number never
+    // disburses twice, so a content-derived key is a genuine safeguard there).
+    @Transactional
+    public Transaction internalWithdrawal(String debitAccountNumber, BigDecimal amount, String currencyCode, String reason) {
+        String idempotencyKey = "internal-" + sha256Hex(reason + "|" + debitAccountNumber + "|" + amount);
+        return internalWithdrawal(idempotencyKey, debitAccountNumber, amount, currencyCode, reason);
     }
 
     // ── Private helpers ───────────────────────────────────────

@@ -200,6 +200,7 @@ public class LoanService {
         // Real withdrawal from the customer's paying account — correct semantics,
         // since a deposit account IS credit-natured and withdrawal correctly decreases it.
         Transaction txn = transactionService.internalWithdrawal(
+            request.idempotencyKey(),
             request.payingAccountNumber(),
             request.amount(),
             loan.getCurrency().getCurrencyCode(),
