@@ -22,12 +22,15 @@ public record AccountResponse(
     OffsetDateTime openedAt,
     OffsetDateTime createdAt
 ) {
-    public record AccountTypeSummary(UUID accountTypeId, String code, String name) {}
+    public record AccountTypeSummary(UUID accountTypeId, String code, String name, boolean isCreditNature) {}
 
     public static AccountResponse from(Account a) {
         return new AccountResponse(
             a.getAccountId(), a.getAccountNumber(), a.getCustomer().getCustomerId(),
-            new AccountTypeSummary(a.getAccountType().getAccountTypeId(), a.getAccountType().getCode(), a.getAccountType().getName()),
+            new AccountTypeSummary(a.getAccountType().getAccountTypeId(),
+             a.getAccountType().getCode(), 
+             a.getAccountType().getName(), 
+             a.getAccountType().isCreditNature()),
             a.getCurrency().getCurrencyCode(), a.getBalance(), a.getAvailableBalance(), a.getHoldBalance(),
             a.getStatus(), a.getDailyLimit(), a.getOpenedAt(), a.getCreatedAt()
         );

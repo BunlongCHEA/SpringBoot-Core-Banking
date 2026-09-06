@@ -176,9 +176,9 @@ public class LoanService {
         loan.setNextPaymentDate(LocalDate.now().plusMonths(1));
 
         auditService.log("Loan", loanId, AuditAction.UPDATE,
-        securityContext.currentUserId(), securityContext.currentUserRole(), securityContext.currentIp(),
-        Map.of("status", "APPROVED"), Map.of("status", "DISBURSED"),
-        Map.of("principal", loan.getPrincipal(), "disbursementAccount", loan.getDisbursementAccount().getAccountNumber()));
+            securityContext.currentUserId(), securityContext.currentUserRole(), securityContext.currentIp(),
+            Map.of("status", "APPROVED"), Map.of("status", "DISBURSED"),
+            Map.of("principal", loan.getPrincipal(), "disbursementAccount", loan.getDisbursementAccount().getAccountNumber()));
         log.info("Loan disbursed: {}", loan.getLoanNumber());
         return LoanResponse.from(loanRepository.save(loan));
     }
@@ -193,6 +193,9 @@ public class LoanService {
             throw new BusinessException("Payment exceeds outstanding balance ("
                 + loan.getOutstandingBalance() + " " + loan.getCurrency().getCurrencyCode() + ")");
         }
+
+        LoanStatus oldStatus = loan.getStatus();
+        BigDecimal oldOutstanding = loan.getOutstandingBalance();
 
         // Real withdrawal from the customer's paying account — correct semantics,
         // since a deposit account IS credit-natured and withdrawal correctly decreases it.
@@ -224,7 +227,8 @@ public class LoanService {
             loan.setStatus(LoanStatus.ACTIVE);   // first payment received
         }
 
-        if (newOutstanding.compareTo(BigDecimal.ZERO) <= 0) {
+        boolean paidOff = newOutstanding.compareTo(BigDecimal.ZERO) <= 0;
+        if (paidOff) {
             loan.setStatus(LoanStatus.CLOSED);
             loan.setNextPaymentDate(null);
         } else {
@@ -241,7 +245,24 @@ public class LoanService {
             .paidAt(OffsetDateTime.now())
             .build());
 
-        return LoanResponse.from(loanRepository.save(loan));
+        Loan saved = loanRepository.save(loan);
+
+        // Audit the loan's state transition, not the raw payment amount itself —
+        // loan_payments already has amount/principal/interest split, and
+        // transactions/account_ledgers already cover the actual money movement.
+        // What's audit-worthy here is specifically that the loan CHANGED STATE
+        // (DISBURSED->ACTIVE on first payment, or ->CLOSED on payoff) as a
+        // direct result of this action.
+        auditService.log("Loan", loanId, AuditAction.UPDATE,
+        securityContext.currentUserId(), securityContext.currentUserRole(), securityContext.currentIp(),
+        Map.of("status", oldStatus, "outstandingBalance", oldOutstanding),
+        Map.of("status", saved.getStatus(), "outstandingBalance", newOutstanding),
+        Map.of("transactionId", txn.getTransactionId(),
+               "paymentAmount", request.amount(),
+               "payingAccount", request.payingAccountNumber(),
+               "paidOff", paidOff));
+
+        return LoanResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
