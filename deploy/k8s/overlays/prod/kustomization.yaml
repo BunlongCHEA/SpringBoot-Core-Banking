@@ -1,0 +1,59 @@
+# =============================================================
+# PRODUCTION — namespace cbs-prod, deployed from branch "main" after approval
+# =============================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: cbs-prod
+
+resources:
+  - ../../base
+  - pdb.yaml
+  - backup-pvc.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/instance: cbs-prod
+    includeSelectors: false
+
+patches:
+  - target:
+      kind: Ingress
+      name: cbs
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: cbs-api.bunlong.uk          # CHANGE
+  # 2 replicas, spread over pi5 + k8 so one node can reboot without downtime
+  - target:
+      kind: Deployment
+      name: cbs-backend
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+      - op: add
+        path: /spec/template/spec/topologySpreadConstraints
+        value:
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: ScheduleAnyway
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: cbs-backend
+  - target:
+      kind: Deployment
+      name: cbs-nginx
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+      - op: add
+        path: /spec/template/spec/topologySpreadConstraints
+        value:
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: ScheduleAnyway
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: cbs-nginx

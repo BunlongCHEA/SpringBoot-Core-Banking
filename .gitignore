@@ -41,3 +41,8 @@ build/
 *.env
 !*.env.example
 /logs/*
+
+### CI/CD ###
+/deploy/k8s/.render/
+/.tools/
+trivy-*.json

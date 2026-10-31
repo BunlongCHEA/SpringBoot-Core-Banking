@@ -1,0 +1,118 @@
+# =============================================================
+# CBS Spring Boot backend — Deployment + internal Service.
+# Not reachable from outside the cluster: traffic always goes
+#   Cloudflare Tunnel → Traefik (Ingress) → cbs-nginx → cbs-backend
+# Secrets come from Secret "cbs-env" (built by Jenkins from the
+# cbs-uat-env / cbs-prod-env credential). Nothing secret is in Git.
+# =============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cbs-backend
+  labels:
+    app.kubernetes.io/name: cbs-backend
+    app.kubernetes.io/part-of: cbs
+spec:
+  replicas: 1                      # overridden per environment
+  revisionHistoryLimit: 5          # how far `kubectl rollout undo` can go back
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cbs-backend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0            # never drop below desired replicas during a deploy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cbs-backend
+        app.kubernetes.io/part-of: cbs
+      annotations:
+        # deploy.sh writes a hash of cbs.env here, so changing a secret
+        # in Jenkins automatically restarts the pods.
+        cbs/env-checksum: "none"
+    spec:
+      imagePullSecrets:
+        - name: gitlab-registry    # created by deploy.sh from gitlab-registry-pull
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 40   # > spring.lifecycle.timeout-per-shutdown-phase (30s)
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: cbs-backend
+          image: cbs-backend       # replaced by deploy.sh with registry.gitlab.com/...:<tag>
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: cbs-env
+          env:
+            - name: JAVA_OPTS
+              value: "-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 768Mi
+            limits:
+              memory: 1536Mi
+          # Startup can be slow (Flyway migrations, ARM CPU): allow up to 5 min.
+          startupProbe:
+            httpGet:
+              path: /api/v1/actuator/health/liveness
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /api/v1/actuator/health/liveness
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/v1/actuator/health/readiness
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: logs
+              mountPath: /app/logs
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: logs
+          emptyDir:
+            sizeLimit: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cbs-backend
+  labels:
+    app.kubernetes.io/name: cbs-backend
+    app.kubernetes.io/part-of: cbs
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: cbs-backend
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

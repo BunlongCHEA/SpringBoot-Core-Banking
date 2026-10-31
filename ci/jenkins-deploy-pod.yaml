@@ -1,0 +1,26 @@
+# =============================================================
+# Small Pod used ONLY for the production deploy (after approval) and for
+# SECRETS_ONLY runs. No Docker, no build tools — just a shell + kubectl.
+# =============================================================
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app.kubernetes.io/name: cbs-ci-deploy
+spec:
+  nodeSelector:
+    cbs.ci/agent: "true"
+  automountServiceAccountToken: false
+  containers:
+    - name: tools
+      image: eclipse-temurin:25-jdk       # same image as the build agent → already cached on the node
+      command: ["cat"]
+      tty: true
+      resources:
+        requests: {cpu: 100m, memory: 128Mi}
+        limits: {memory: 512Mi}
+      volumeMounts:
+        - {name: tools-cache, mountPath: /cache/bin}
+  volumes:
+    - name: tools-cache
+      hostPath: {path: /var/lib/jenkins-cache/bin, type: DirectoryOrCreate}

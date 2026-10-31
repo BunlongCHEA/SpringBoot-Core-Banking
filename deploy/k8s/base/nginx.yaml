@@ -1,0 +1,117 @@
+# =============================================================
+# nginx reverse proxy (config: nginx.conf → ConfigMap cbs-nginx-conf)
+# Non-root image, read-only root filesystem.
+# =============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cbs-nginx
+  labels:
+    app.kubernetes.io/name: cbs-nginx
+    app.kubernetes.io/part-of: cbs
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cbs-nginx
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cbs-nginx
+        app.kubernetes.io/part-of: cbs
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: nginx
+          # Official NGINX image that runs as non-root on port 8080.
+          # Multi-arch (amd64 + arm64). Pin a digest once you are happy with it:
+          #   docker buildx imagetools inspect nginxinc/nginx-unprivileged:stable-alpine
+          image: nginxinc/nginx-unprivileged:stable-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /nginx-health
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /nginx-health
+              port: http
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: conf
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: conf
+          configMap:
+            name: cbs-nginx-conf
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cbs-nginx
+  labels:
+    app.kubernetes.io/name: cbs-nginx
+    app.kubernetes.io/part-of: cbs
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: cbs-nginx
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+# Traefik (bundled with K3s) routes the public hostname to nginx.
+# Host is set per environment in overlays/<env>/kustomization.yaml.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cbs
+  labels:
+    app.kubernetes.io/part-of: cbs
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: cbs-api.example.com
+      http:
+        paths:
+          - path: /api/v1
+            pathType: Prefix
+            backend:
+              service:
+                name: cbs-nginx
+                port:
+                  name: http
