@@ -1,0 +1,8 @@
+# =============================================================
+# Trivy accepted-risk list. One CVE ID per line.
+# ONLY add an entry after reviewing it, and ALWAYS write why + a review date.
+# Every line here lets a HIGH/CRITICAL vulnerability reach UAT/PROD.
+#
+# Example:
+# CVE-2026-12345   # jackson-databind gadget, not reachable: no polymorphic typing. Review 2026-12-31 (Bunlong)
+# =============================================================

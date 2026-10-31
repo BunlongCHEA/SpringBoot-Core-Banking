@@ -1,8 +1,31 @@
-# /opt/cbs/deploy.conf — NOT secret. One per server.
-# UAT server:
-CBS_ENV=uat
-# PROD server: use  CBS_ENV=prod   (enables the pg_dump backup step)
+# =============================================================
+# deploy/conf/<env>.conf — NON-secret deploy settings, one per environment.
+# Committed to Git (deploy/conf/uat.conf, deploy/conf/prod.conf), read by
+# deploy/deploy.sh. This file documents every key.
+# Secrets do NOT go here — they go in the cbs-<env>-env Jenkins credential
+# (template: deploy/cbs.env.example).
+# =============================================================
 
-IMAGE_NAME=registry.gitlab.example.com/bank/cbs-backend
-HEALTH_URL=http://localhost:8080/api/v1/actuator/health
-HEALTH_TIMEOUT_SECONDS=180
+# uat | prod.  Must equal SPRING_PROFILES_ACTIVE inside the env credential —
+# deploy.sh refuses to deploy a UAT secret file to PROD (and vice versa).
+CBS_ENV=prod
+
+# Kubernetes namespace (created by Terraform-Plan: playbooks/install/jenkins.yml)
+K8S_NAMESPACE=cbs-prod
+
+# Kustomize overlay for this environment (relative to the repo root)
+OVERLAY=deploy/k8s/overlays/prod
+
+# Registry the cluster pulls from (pull secret "gitlab-registry")
+REGISTRY=registry.gitlab.com
+
+# pg_dump the database BEFORE rolling out a new image (Flyway migrates on startup)
+BACKUP_BEFORE_DEPLOY=true
+BACKUP_RETENTION_DAYS=14
+
+# How long a rollout may take before deploy.sh rolls back
+# (startupProbe allows 5 min for Flyway + JVM start on ARM)
+ROLLOUT_TIMEOUT=420s
+
+# Checked from inside the cluster after the rollout
+SMOKE_URL=http://cbs-nginx.cbs-prod.svc.cluster.local/api/v1/actuator/health
