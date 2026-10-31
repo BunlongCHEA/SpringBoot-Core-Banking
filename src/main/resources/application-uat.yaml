@@ -1,0 +1,23 @@
+# =============================================================
+# UAT profile — activated with SPRING_PROFILES_ACTIVE=uat
+# Purpose: testers and developers verify features here.
+# More logging and Swagger ON, but still NO secrets in this file.
+# =============================================================
+
+logging:
+  level:
+    com.bank.cbs: DEBUG
+    org.hibernate.SQL: DEBUG
+    # NOTE: never enable org.hibernate.orm.jdbc.bind=TRACE outside your laptop —
+    # it prints SQL parameter values (account numbers, names) into the log.
+
+management:
+  endpoint:
+    health:
+      show-details: always        # handy for testers; prod hides it
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true

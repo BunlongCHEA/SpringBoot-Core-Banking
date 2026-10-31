@@ -37,6 +37,7 @@ public class Channel {
 
     @JsonProperty("isActive")   // same Jackson boolean-getter fix as AccountType
     @Column(name = "is_active", nullable = false)
+    @Builder.Default
     private boolean isActive = true;
 
     @Column(name = "created_at", updatable = false)

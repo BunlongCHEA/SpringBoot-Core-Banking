@@ -1,0 +1,36 @@
+# =============================================================
+# TEST profile — used ONLY by `./mvnw verify` (locally and in Jenkins).
+# Postgres / Redis / MongoDB / RabbitMQ connection details are injected
+# by Testcontainers (see TestcontainersConfiguration.java), so the
+# values below are dummies that just let placeholders resolve.
+# None of these values are real secrets.
+# =============================================================
+
+spring:
+  datasource:
+    username: test
+    password: test
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/test        # overridden by @ServiceConnection
+    redis:
+      url: redis://localhost:6379/0               # overridden by @ServiceConnection
+
+logging:
+  file:
+    name: target/test-logs/cbs-test.log
+
+cbs:
+  security:
+    jwt:
+      secret: test-only-jwt-secret-0123456789abcdef0123456789abcdef
+  super-admin:
+    initial-password: TestOnlyPassword-12345
+
+kyc:
+  base-url: http://localhost:9999
+  api-key: test-only-kyc-api-key
+  mq:
+    # base64 of 32 bytes: "TEST-ONLY-KEY-32-BYTES-PADDING!!"
+    keys-json: '{"v1":"VEVTVC1PTkxZLUtFWS0zMi1CWVRFUy1QQURESU5HISE="}'
+    request-signing-secret: test-only-signing-secret

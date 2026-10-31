@@ -1,0 +1,30 @@
+# =============================================================
+# PRODUCTION profile — activated with SPRING_PROFILES_ACTIVE=prod
+# Locked down: quiet logs, no Swagger, no health internals,
+# RabbitMQ over TLS. Secrets still come only from env vars.
+# =============================================================
+
+logging:
+  level:
+    root: WARN
+    com.bank.cbs: INFO
+
+management:
+  endpoint:
+    health:
+      show-details: never         # public /actuator/health returns only {"status":"UP"}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus   # no /flyway, no /metrics browsing
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+rabbitmq:
+  ssl:
+    enabled: ${RABBITMQ_SSL_ENABLED:true}
+    verify-hostname: ${RABBITMQ_SSL_VERIFY_HOSTNAME:true}

@@ -62,15 +62,19 @@ public class Card extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(nullable = false, columnDefinition = "card_status")
+    @Builder.Default
     private CardStatus status = CardStatus.PENDING;
 
     @Column(name = "daily_limit", precision = 20, scale = 4)
+    @Builder.Default
     private BigDecimal dailyLimit = new BigDecimal("5000.0000");
 
     @Column(name = "contactless_enabled", nullable = false)
+    @Builder.Default
     private boolean contactlessEnabled = true;
 
     @Column(name = "international_enabled", nullable = false)
+    @Builder.Default
     private boolean internationalEnabled = false;
 
     @Column(name = "issued_at")

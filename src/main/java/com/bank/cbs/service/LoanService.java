@@ -212,7 +212,7 @@ public class LoanService {
         if (interestPortion.compareTo(request.amount()) > 0) interestPortion = request.amount();
         BigDecimal principalPortion = request.amount().subtract(interestPortion);
 
-        BigDecimal newOutstanding = loan.getOutstandingBalance().subtract(principalPortion);
+        BigDecimal newOutstanding = loan.getOutstandingBalance().subtract(request.amount());   // fixed
         loan.setOutstandingBalance(newOutstanding);
 
         // Loan's own backing account balance mirrors outstanding — deliberately

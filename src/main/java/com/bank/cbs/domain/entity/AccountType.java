@@ -38,10 +38,12 @@ public class AccountType {
 
     @JsonProperty("isCreditNature")
     @Column(name = "is_credit_nature", nullable = false)
+    @Builder.Default
     private boolean isCreditNature = true;
 
     @JsonProperty("isActive")
     @Column(name = "is_active", nullable = false)
+    @Builder.Default
     private boolean isActive = true;
 
     @Column(name = "created_at", updatable = false)

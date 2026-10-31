@@ -55,5 +55,6 @@ public class Beneficiary extends BaseEntity {
     private Currency currency;
 
     @Column(name = "is_active", nullable = false)
+    @Builder.Default
     private boolean isActive = true;    
 }

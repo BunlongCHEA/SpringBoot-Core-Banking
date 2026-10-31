@@ -36,6 +36,7 @@ public class Currency {
     private short decimalPlaces; // Number of decimal places, e.g., 2 for USD
 
     @Column(name = "is_active", nullable = false)
+    @Builder.Default
     private boolean isActive = true; // Indicates if the currency is currently active in the system
 
     @Column(name = "usd_exchange_rate", nullable = false, precision = 18, scale = 6)

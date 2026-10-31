@@ -58,6 +58,7 @@ public class KycVerification extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(nullable = false, columnDefinition = "kyc_status")
+    @Builder.Default
     private KycStatus status = KycStatus.PENDING;
 
     @Column(name = "verified_by")

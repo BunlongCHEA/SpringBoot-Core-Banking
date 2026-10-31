@@ -56,17 +56,21 @@ public class Account extends BaseEntity {
     private Currency currency;
 
     @Column(nullable = false, precision = 20, scale = 4)
+    @Builder.Default
     private BigDecimal balance = BigDecimal.ZERO;
 
     @Column(name = "available_balance", nullable = false, precision = 20, scale = 4)
+    @Builder.Default
     private BigDecimal availableBalance = BigDecimal.ZERO;
 
     @Column(name = "hold_balance", nullable = false, precision = 20, scale = 4)
+    @Builder.Default
     private BigDecimal holdBalance = BigDecimal.ZERO;
 
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(nullable = false, columnDefinition = "account_status")
+    @Builder.Default
     private AccountStatus status = AccountStatus.ACTIVE;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -74,9 +78,11 @@ public class Account extends BaseEntity {
     private Branch branch;
 
     @Column(name = "daily_limit", precision = 20, scale = 4)
+    @Builder.Default
     private BigDecimal dailyLimit = new BigDecimal("50000.0000");
 
     @Column(name = "interest_rate", precision = 6, scale = 4)
+    @Builder.Default
     private BigDecimal interestRate = BigDecimal.ZERO;
 
     @Column(name = "opened_at")

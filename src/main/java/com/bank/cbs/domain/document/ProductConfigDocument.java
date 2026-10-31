@@ -34,9 +34,11 @@ public class ProductConfigDocument {
     private String productType;         // SAVINGS, CHECKING, LOAN, CARD
 
     @Field("version")
+    @Builder.Default
     private Integer version = 1;
 
     @Field("is_active")
+    @Builder.Default
     private boolean isActive = true;
 
     @Field("rules")

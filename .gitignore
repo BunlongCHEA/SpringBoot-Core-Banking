@@ -34,6 +34,10 @@ build/
 
 .fake
 
-### Ignore System Files and Sensitive Data
-/src/main/resources/application.yaml
+### Secrets & local-only files ###
+# application.yaml is now COMMITTED (secret-free). Your real local
+# secrets go in application-local.yaml, which is never committed.
+/src/main/resources/application-local.yaml
+*.env
+!*.env.example
 /logs/*

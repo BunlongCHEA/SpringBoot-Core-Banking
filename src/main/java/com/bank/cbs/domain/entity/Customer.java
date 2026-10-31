@@ -66,11 +66,13 @@ public class Customer extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(nullable = false, columnDefinition = "customer_status")
+    @Builder.Default
     private CustomerStatus status = CustomerStatus.ACTIVE;
 
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(name = "customer_type", nullable = false, columnDefinition = "customer_type")
+    @Builder.Default
     private CustomerType customerType = CustomerType.INDIVIDUAL;
 
     @ManyToOne(fetch = FetchType.LAZY)

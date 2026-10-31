@@ -78,6 +78,7 @@ public class Loan extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(nullable = false, columnDefinition = "loan_status")
+    @Builder.Default
     private LoanStatus status = LoanStatus.PENDING;
 
     @Column(name = "approved_at") 

@@ -46,5 +46,6 @@ public class Address extends BaseEntity {
     private String countryCode;
 
     @Column(name = "is_primary", nullable = false)
+    @Builder.Default
     private boolean isPrimary = false;    
 }

@@ -1,0 +1,3 @@
+# Send ONLY the built JAR to the Docker build — never source, .git, or local config
+*
+!target/*.jar

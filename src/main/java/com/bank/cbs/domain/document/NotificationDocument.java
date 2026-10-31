@@ -53,6 +53,7 @@ public class NotificationDocument {
     private String referenceId;
 
     @Field("retry_count")
+    @Builder.Default
     private int retryCount = 0;
 
     @Field("error_message")

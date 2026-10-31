@@ -68,6 +68,7 @@ public class Transaction extends BaseEntity {
     private Currency currency;
 
     @Column(name = "exchange_rate", precision = 12, scale = 6)
+    @Builder.Default
     private BigDecimal exchangeRate = BigDecimal.ONE;
 
     @Column(name = "base_amount", precision = 20, scale = 4)
@@ -76,6 +77,7 @@ public class Transaction extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(nullable = false, columnDefinition = "transaction_status")
+    @Builder.Default
     private TransactionStatus status = TransactionStatus.PENDING;
 
     // @Enumerated(EnumType.STRING)

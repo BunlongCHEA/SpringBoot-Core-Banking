@@ -212,6 +212,32 @@
             <artifactId>spring-rabbit-test</artifactId>
             <scope>test</scope>
         </dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-testcontainers</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers-junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers-postgresql</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers-mongodb</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers-rabbitmq</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -232,12 +258,15 @@
 			<plugin>
 				<groupId>org.flywaydb</groupId>
 				<artifactId>flyway-maven-plugin</artifactId>
-				<configuration>
-					<url>jdbc:postgresql://localhost:5433/core_banking_db</url>
-					<user>postgres</user>
-					<password>12345</password>
-					<cleanDisabled>false</cleanDisabled>
-				</configuration>
+				<!-- <configuration> -->
+					<!-- <url>jdbc:postgresql://localhost:5433/core_banking_db</url> -->
+					<!-- <user>postgres</user> -->
+					<!-- <password>12345</password> -->
+					<!-- <url>${flyway.url}</url> -->
+					<!-- <user>${flyway.user}</user> -->
+					<!-- <password>${flyway.password}</password> -->
+					<!-- <cleanDisabled>true</cleanDisabled> -->
+				<!-- </configuration> -->
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

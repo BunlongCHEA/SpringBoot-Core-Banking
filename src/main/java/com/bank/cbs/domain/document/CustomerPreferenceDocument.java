@@ -32,12 +32,15 @@ public class CustomerPreferenceDocument {
     private UUID customerId;
 
     @Field("language")
+    @Builder.Default
     private String language = "en";
 
     @Field("currency")
+    @Builder.Default
     private String preferredCurrency = "USD";
 
     @Field("timezone")
+    @Builder.Default
     private String timezone = "UTC";
 
     @Field("notification_channels")
@@ -53,9 +56,11 @@ public class CustomerPreferenceDocument {
     private Map<String, Object> dashboardLayout;  // Widget preferences
 
     @Field("marketing_consent")
+    @Builder.Default
     private boolean marketingConsent = false;
 
     @Field("data_sharing_consent")
+    @Builder.Default
     private boolean dataSharingConsent = false;
 
     @LastModifiedDate
