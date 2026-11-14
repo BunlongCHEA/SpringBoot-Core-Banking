@@ -1,0 +1,32 @@
+# =============================================================
+# UAT / staging  — namespace cbs-uat, deployed automatically from branch "uat"
+# =============================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: cbs-uat
+
+resources:
+  - ../../base
+
+labels:
+  - pairs:
+      app.kubernetes.io/instance: cbs-uat
+    includeSelectors: false
+
+patches:
+  # Public hostname (Cloudflare Tunnel → http://localhost:80, HTTP Host Header = this)
+  - target:
+      kind: Ingress
+      name: cbs
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: cbs-api-uat.bunlong.uk     # CHANGE
+  - target:
+      kind: Deployment
+      name: cbs-backend
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1

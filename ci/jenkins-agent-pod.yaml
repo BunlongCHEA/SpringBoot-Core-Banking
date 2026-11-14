@@ -1,0 +1,84 @@
+# =============================================================
+# Jenkins build agent — a throw-away Pod on the K3s "k8" node.
+# The Jenkins Kubernetes plugin creates one Pod per build and deletes it
+# afterwards, so several builds can run in parallel (scale = more pods).
+# It adds the "jnlp" container (agent ↔ controller) automatically.
+#
+#   maven   JDK 25: ./mvnw verify (Testcontainers talks to "docker")
+#   docker  Docker-in-Docker: Testcontainers + buildx multi-arch build/push
+#   trivy   secret scan + image vulnerability gate
+#
+# Node selection: Terraform-Plan jenkins.yml labels the k8 node with
+#   cbs.ci/agent=true   (the pi5 master runs the Jenkins controller)
+# Caches live on that node under /var/lib/jenkins-cache (Maven, Trivy DB, kubectl).
+# =============================================================
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app.kubernetes.io/name: cbs-ci-agent
+spec:
+  nodeSelector:
+    cbs.ci/agent: "true"
+  automountServiceAccountToken: false     # deploys use kubeconfig credentials, not this pod's SA
+  containers:
+    - name: maven
+      image: eclipse-temurin:25-jdk
+      command: ["cat"]
+      tty: true
+      env:
+        - name: DOCKER_HOST                 # Testcontainers → dind sidecar (same Pod = localhost)
+          value: tcp://localhost:2375
+        - name: TESTCONTAINERS_HOST_OVERRIDE
+          value: localhost
+        - name: MAVEN_OPTS
+          value: "-Xmx1g"
+      resources:
+        requests: {cpu: "1", memory: 2Gi}
+        limits: {memory: 3Gi}
+      volumeMounts:
+        - {name: m2-cache, mountPath: /root/.m2}
+        - {name: tools-cache, mountPath: /cache/bin}
+
+    - name: docker
+      image: docker:29-dind
+      securityContext:
+        privileged: true                    # required by Docker-in-Docker
+      env:
+        - name: DOCKER_TLS_CERTDIR          # empty = plain TCP on localhost:2375, Pod-internal only
+          value: ""
+      # K3s flannel (VXLAN) MTU is 1450; inner Docker must not use 1500 or pulls hang
+      args: ["--mtu=1450"]
+      resources:
+        requests: {cpu: 500m, memory: 1Gi}
+        limits: {memory: 4Gi}
+      volumeMounts:
+        - {name: docker-data, mountPath: /var/lib/docker}
+
+    - name: trivy
+      # Pinned version. Trivy releases are immutable since the March 2026
+      # supply-chain incident (v0.69.4 was malicious). Pin the digest too:
+      #   docker buildx imagetools inspect ghcr.io/aquasecurity/trivy:0.75.0
+      image: ghcr.io/aquasecurity/trivy:0.75.0
+      command: ["cat"]
+      tty: true
+      env:
+        - name: TRIVY_CACHE_DIR
+          value: /cache/trivy
+        - name: TRIVY_NO_PROGRESS
+          value: "true"
+      resources:
+        requests: {cpu: 250m, memory: 512Mi}
+        limits: {memory: 2Gi}
+      volumeMounts:
+        - {name: trivy-cache, mountPath: /cache/trivy}
+
+  volumes:
+    - name: docker-data
+      emptyDir: {}                          # per-build; never share /var/lib/docker between pods
+    - name: m2-cache
+      hostPath: {path: /var/lib/jenkins-cache/m2, type: DirectoryOrCreate}
+    - name: trivy-cache
+      hostPath: {path: /var/lib/jenkins-cache/trivy, type: DirectoryOrCreate}
+    - name: tools-cache
+      hostPath: {path: /var/lib/jenkins-cache/bin, type: DirectoryOrCreate}

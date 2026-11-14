@@ -1,34 +1,31 @@
 # =============================================================
-# CBS backend — runtime image
-# Jenkins already compiled and tested the JAR (./mvnw verify),
-# so this image only RUNS it. Small, non-root, health-checked.
+# CBS backend — runtime image (multi-arch: linux/amd64 + linux/arm64)
+#
+# Jenkins already compiled and tested the JAR (./mvnw verify), so this
+# image only RUNS it. There are deliberately NO `RUN` steps: that lets
+# `docker buildx --platform linux/amd64,linux/arm64` build both
+# architectures on the k8 agent without QEMU emulation, so the same tag
+# runs on pi5 (arm64) and k8 (amd64).
+#
+# Health checks are Kubernetes probes (deploy/k8s/base/backend.yaml),
+# so no curl / HEALTHCHECK is needed in the image.
 # =============================================================
 FROM eclipse-temurin:25-jre
 
-# curl is used by the HEALTHCHECK below
-RUN apt-get update \
- && apt-get install -y --no-install-recommends curl \
- && rm -rf /var/lib/apt/lists/*
-
-# Fixed UID/GID 10001 so the host's ./logs folder can be chowned to match
-RUN groupadd --system --gid 10001 cbs \
- && useradd --system --uid 10001 --gid cbs --home-dir /app --shell /usr/sbin/nologin cbs
-
 WORKDIR /app
 
-# Only the Spring Boot fat JAR (cbs-<version>.jar); *.jar.original is not matched
-COPY target/cbs-*.jar app.jar
+# Only the Spring Boot fat JAR (cbs-<version>.jar); *.jar.original is not matched.
+# Owned by root and read-only for the app user.
+COPY target/cbs-*.jar /app/app.jar
 
-RUN mkdir -p /app/logs && chown -R cbs:cbs /app
-USER cbs
+# Fixed non-root UID/GID 10001 (matches runAsUser in the Deployment).
+# /app/logs and /tmp are writable emptyDir volumes in Kubernetes.
+USER 10001:10001
 
 EXPOSE 8080
 
-# Container-aware memory sizing; crash fast on OOM so Docker restarts it
+# Container-aware memory sizing; crash fast on OOM so Kubernetes restarts it.
+# The Deployment overrides this via env JAVA_OPTS.
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
-
-# Flyway migrations run on startup, so give it a generous start period
-HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
-  CMD curl -fsS http://localhost:8080/api/v1/actuator/health || exit 1
 
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]

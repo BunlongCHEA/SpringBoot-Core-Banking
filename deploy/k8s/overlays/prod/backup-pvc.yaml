@@ -1,0 +1,14 @@
+# Where deploy.sh's pre-deploy pg_dump Job writes backups (prod only).
+# K3s "local-path" = a folder on ONE node, under
+#   /var/lib/rancher/k3s/storage/pvc-<uid>_cbs-prod_cbs-db-backups
+# Copy those files off the node regularly — a disk failure loses them.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cbs-db-backups
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 20Gi
