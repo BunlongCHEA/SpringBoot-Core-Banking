@@ -72,14 +72,21 @@ pipeline {
                 stage('Prepare') {
                     steps {
                         script {
-                            def shortSha   = sh(script: 'git rev-parse --short=8 HEAD', returnStdout: true).trim()
+                            // GIT_COMMIT is set by the SCM checkout (done in the jnlp container).
+                            // The build containers have no git binary, so don't shell out to git.
+                            if (!env.GIT_COMMIT) { error 'GIT_COMMIT not set - is the job a Multibranch Pipeline with a Git source?' }
+                            def shortSha   = env.GIT_COMMIT.take(8)
                             def safeBranch = env.BRANCH_NAME.replaceAll('[^a-zA-Z0-9_.-]', '-')
                             // e.g. uat-42-1a2b3c4d  /  main-17-9f8e7d6c
                             env.IMAGE_TAG = "${safeBranch}-${env.BUILD_NUMBER}-${shortSha}"
                             env.GIT_SHA   = shortSha
                             currentBuild.displayName = "#${env.BUILD_NUMBER} ${env.IMAGE_TAG}"
                         }
-                        sh 'java -version'
+                        // Tools the later stages need inside the maven container
+                        sh '''
+                            java -version
+                            command -v curl || command -v wget || { echo "Need curl or wget in the maven image (mvnw, kubectl download)"; exit 1; }
+                        '''
                     }
                 }
 
